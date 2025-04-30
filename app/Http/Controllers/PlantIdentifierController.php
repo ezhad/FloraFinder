@@ -24,54 +24,12 @@ class PlantIdentifierController extends Controller
         ]);
 
         try {
-            // Save the uploaded image
-            $path = $request->file('image')->store('temp-plant-images');
-            $fullPath = Storage::path($path);
-
-            // Get API key from environment
-            $apiKey = env('PLANTNET_API_KEY');
-            $connector = new IntegrationsPlantNetConnector();
-
-            // Create the request
-            $plantNetRequest = new IntegrationsIdentifyPlantRequest(
-                'all',     // project
-                $fullPath, // local image path
-                $apiKey,   // API key
-                $request->input('organ', 'flower') // organ type
+            $result = $this->processPlantIdentification(
+                $request->file('image'),
+                $request->input('organ')
             );
 
-            // Send the request
-            $response = $connector->send($plantNetRequest);
-
-
-            // Clean up the temporary file
-            Storage::delete($path);
-
-            // Check if the response is successful
-            if ($response->successful()) {
-                $result = [
-                    'success' => true,
-                    'data' => $response->json()
-                ];
-            } else {
-                // If the response is not successful, return an error message
-                $result = [
-                    'success' => false,
-                    'message' => 'API returned an error: ' . $response->status(),
-                    'error' => $response->json() ?? $response->body()
-                ];
-            }
-
-            // dd($result);
-
-            // Option 1: Use Inertia directly
-            return Inertia::render('Detect', [
-                'plantData' => $result
-            ]);
-
-
-            // Return with flash data for Inertia
-            // return back()->with('plantData', $result);
+            return Inertia::render('Detect', ['plantData' => $result]);
         } catch (\Exception $e) {
             Log::error('Plant identification error: ' . $e->getMessage());
 
@@ -81,5 +39,51 @@ class PlantIdentifierController extends Controller
                 'error' => $e->getMessage()
             ]);
         }
+    }
+
+    private function processPlantIdentification($imageFile, $organ)
+    {
+        // Save the uploaded image
+        $path = $imageFile->store('temp-plant-images');
+        $fullPath = Storage::path($path);
+
+        try {
+            // Get API response
+            $response = $this->sendIdentificationRequest($fullPath, $organ);
+
+            // Process response
+            if ($response->successful()) {
+                $result = [
+                    'success' => true,
+                    'data' => $response->json()
+                ];
+            } else {
+                $result = [
+                    'success' => false,
+                    'message' => 'API returned an error: ' . $response->status(),
+                    'error' => $response->json() ?? $response->body()
+                ];
+            }
+
+            return $result;
+        } finally {
+            // Clean up the temporary file
+            Storage::delete($path);
+        }
+    }
+
+    private function sendIdentificationRequest($imagePath, $organ)
+    {
+        $apiKey = env('PLANTNET_API_KEY');
+        $connector = new IntegrationsPlantNetConnector();
+
+        $plantNetRequest = new IntegrationsIdentifyPlantRequest(
+            'all',     // project
+            $imagePath, // local image path
+            $apiKey,   // API key
+            $organ     // organ type
+        );
+
+        return $connector->send($plantNetRequest);
     }
 }
