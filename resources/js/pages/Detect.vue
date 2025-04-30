@@ -122,10 +122,10 @@ const hasResults = computed(() => {
 });
 
 // Computed property for the selected result
-const selectedResult = computed(() => {
-  if (!hasResults.value) return null;
-  return results.value!.data!.results[selectedResultIndex.value];
-});
+// const selectedResult = computed(() => {
+//   if (!hasResults.value) return null;
+//   return results.value!.data!.results[selectedResultIndex.value];
+// });
 
 // Methods
 const onImageChange = (e: Event): void => {
@@ -216,20 +216,20 @@ const identifyPlant = async (): Promise<void> => {
   }
 };
 
-const getScoreClass = (score: number): string => {
-  if (score > 0.7) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
-  if (score > 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-};
+// const getScoreClass = (score: number): string => {
+//   if (score > 0.7) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+//   if (score > 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
+//   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+// };
 
-const setActiveImage = (index: number): void => {
-  activeImageIndex.value = index;
-};
+// const setActiveImage = (index: number): void => {
+//   activeImageIndex.value = index;
+// };
 
-const selectResult = (index: number): void => {
-  selectedResultIndex.value = index;
-  activeImageIndex.value = 0;
-};
+// const selectResult = (index: number): void => {
+//   selectedResultIndex.value = index;
+//   activeImageIndex.value = 0;
+// };
 
 const organs = [
   { value: 'flower', label: 'Flower', icon: '🌸' },
