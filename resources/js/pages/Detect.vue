@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { ref, reactive, onMounted, computed } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { router } from '@inertiajs/vue3';
-import PlaceholderPattern from '@/components/PlaceholderPattern.vue';
 
 // Define types
 interface FormData {
@@ -100,8 +99,8 @@ const imagePreview = ref<string | null>(null);
 const processing = ref<boolean>(false);
 const results = ref<PlantResult | null>(null);
 const errors = reactive<Errors>({});
-const activeImageIndex = ref<number>(0);
-const selectedResultIndex = ref<number>(0);
+// const activeImageIndex = ref<number>(0);
+// const selectedResultIndex = ref<number>(0);
 const fileUploadRef = ref<HTMLInputElement | null>(null);
 
 // Initialize results from props if available
@@ -113,19 +112,19 @@ onMounted(() => {
 
 
 // Computed property to determine if we have results to show
-const hasResults = computed(() => {
-  return results.value &&
-         results.value.success &&
-         results.value.data &&
-         results.value.data.results &&
-         results.value.data.results.length > 0;
-});
+// const hasResults = computed(() => {
+//   return results.value &&
+//          results.value.success &&
+//          results.value.data &&
+//          results.value.data.results &&
+//          results.value.data.results.length > 0;
+// });
 
 // Computed property for the selected result
-const selectedResult = computed(() => {
-  if (!hasResults.value) return null;
-  return results.value!.data!.results[selectedResultIndex.value];
-});
+// const selectedResult = computed(() => {
+//   if (!hasResults.value) return null;
+//   return results.value!.data!.results[selectedResultIndex.value];
+// });
 
 // Methods
 const onImageChange = (e: Event): void => {
@@ -143,12 +142,12 @@ const resetForm = (): void => {
   imagePreview.value = null;
 
   // Only reset results if they came from API, not from props
-  if (!props.initialData) {
-    results.value = null;
-  } else {
-    // If we have initialData props, restore those
-    results.value = props.initialData as PlantResult;
-  }
+//   if (!props.initialData) {
+//     results.value = null;
+//   } else {
+//     // If we have initialData props, restore those
+//     results.value = props.initialData as PlantResult;
+//   }
 };
 
 const openFileUpload = (): void => {
@@ -186,17 +185,7 @@ const identifyPlant = async (): Promise<void> => {
         console.log('Flash data structure:', page.props.flash);
 
         // Check if the flash data exists before accessing it
-        if (page.props.flash && page.props.flash.data) {
-          results.value = page.props.flash.data;
-          selectedResultIndex.value = 0;
-          activeImageIndex.value = 0;
-        } else {
-          results.value = {
-            success: false,
-            message: 'No response data received',
-            error: 'The server returned an empty response'
-          };
-        }
+
       },
       onError: (validationErrors) => {
         Object.assign(errors, validationErrors);
@@ -216,20 +205,20 @@ const identifyPlant = async (): Promise<void> => {
   }
 };
 
-const getScoreClass = (score: number): string => {
-  if (score > 0.7) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
-  if (score > 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
-};
+// const getScoreClass = (score: number): string => {
+//   if (score > 0.7) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
+//   if (score > 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
+//   return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
+// };
 
-const setActiveImage = (index: number): void => {
-  activeImageIndex.value = index;
-};
+// const setActiveImage = (index: number): void => {
+//   activeImageIndex.value = index;
+// };
 
-const selectResult = (index: number): void => {
-  selectedResultIndex.value = index;
-  activeImageIndex.value = 0;
-};
+// const selectResult = (index: number): void => {
+//   selectedResultIndex.value = index;
+//   activeImageIndex.value = 0;
+// };
 
 const organs = [
   { value: 'flower', label: 'Flower', icon: '🌸' },
