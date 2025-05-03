@@ -29,7 +29,9 @@ class PlantIdentifierController extends Controller
                 $request->input('organ')
             );
 
-            return Inertia::render('Detect', ['plantData' => $result]);
+            return Inertia::render('Detect', [
+                'plantData' => $result
+            ]);
         } catch (\Exception $e) {
             Log::error('Plant identification error: ' . $e->getMessage());
 
