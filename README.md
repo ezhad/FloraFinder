@@ -22,6 +22,84 @@ FloraFinder is a Laravel-based web application that helps users identify Malaysi
 - **Queue System**: Database queue for background jobs
 - **Testing**: PHPUnit with Pest
 
+## Possible Future Features
+
+### 🌿 Core Features
+
+#### 1. Plant Collection & Personal Herbarium
+- Save identified plants to a personalized digital collection
+- Add notes, custom tags, and location information for each plant
+- Export your collection as PDF or share with the community
+- Track rare plant sightings over time
+- Group plants by taxonomy, location, or custom categories
+
+#### 2. Community Verification System
+- Submit uncertain identifications for review by community experts
+- Reputation system for trusted plant identifiers
+- "Verified ID" badges for high-confidence community-checked identifications
+- Expert botanist verification for particularly rare or difficult species
+- Achievement system for accurate identifications
+
+#### 3. Offline Mode & Mobile Support
+- Cache basic identification data for common Malaysian plants
+- Save plant photos for later identification when connectivity returns
+- Reduced-size model for basic identification in offline environments
+- Background sync when connectivity is restored
+- Progressive Web App support for installation on mobile devices
+
+### 🌐 Geographic & Educational Features
+
+#### 4. Interactive Plant Map
+- Visualize where plants have been identified on an interactive map
+- Filter by species, rarity, or conservation status
+- Heatmaps showing biodiversity hotspots in Malaysia
+- Protected location sharing for endangered species
+- Trail recommendations for finding specific plant types
+
+#### 5. Seasonal Alerts & Phenology Tracking
+- Calendar showing flowering/fruiting times for Malaysian plants
+- Notifications when favorite plants are likely blooming
+- Seasonal guides to what's currently visible in Malaysian forests
+- Contribute phenology data to scientific research
+- Track climate change effects on flowering times over years
+
+#### 6. AR Plant Recognition & Learning Tools
+- Point camera at previously identified plants to see labels in AR
+- Educational AR overlays showing plant parts and characteristics
+- Virtual garden planning tools with Malaysian native species
+- Interactive learning modules about plant identification
+- "Plant this in my garden" visualization tool
+
+### 🔬 Advanced Features
+
+#### 7. Conservation Dashboard
+- Conservation status indicators for all identified species
+- Educational content about threatened Malaysian flora
+- Volunteer opportunities for local conservation projects
+- Rare plant sighting reporting (with optional location privacy)
+- Tracking of invasive species spread
+
+#### 8. AI-Powered Plant Health Diagnosis
+- Disease and pest identification for common garden plants
+- Nutrient deficiency analysis based on leaf symptoms
+- Growth stage assessment and care recommendations
+- Treatment suggestions with local Malaysian alternatives
+- Integration with gardening calendar for timely care
+
+#### 9. Guided Botanical Tours
+- Self-guided tour routes in popular Malaysian nature areas
+- Lists of plants to look for on each trail with identification tips
+- Achievement system for finding specific plant collections
+- Audio guides explaining ecological relationships
+- Community-created botanical walking tours
+
+#### 10. Educational Integration
+- Classroom mode for teachers leading nature walks
+- Assignment creation tools for botany classes
+- Data collection features for student research projects
+- Shared collections for educational groups
+- Curriculum materials about Malaysian plant biodiversity
+
 ## Prerequisites
 
 - PHP 8.2 or higher
@@ -36,7 +114,7 @@ FloraFinder is a Laravel-based web application that helps users identify Malaysi
 
 ```bash
 git clone <repository-url>
-cd laravel12
+cd FloraFinder
 ```
 
 2. Install PHP dependencies:
@@ -152,6 +230,8 @@ This application follows standard Laravel deployment practices. Here's a checkli
 - **app/** - Core application code
 - **app/Http/Integrations/** - PlantNet API integration with Saloon
 - **resources/js/pages/** - Vue components for each page
+- **resources/js/components/** - Reusable Vue components
+- **resources/js/layouts/** - Application layout components
 - **routes/** - Application routes definition
 - **config/** - Configuration files
 
@@ -167,5 +247,5 @@ The application integrates with the PlantNet API for plant identification. When 
 
 - Created with Laravel 12 and Vue.js
 - Plant identification powered by PlantNet API
-- Icons from Heroicons
+- Icons from Lucide and Heroicons
 - Demo plant images from Unsplash
