@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import AppLayout from '@/Layouts/AppLayout.vue';
+import AppLayout from '@/layouts/AppLayout.vue'; 
 import { computed, ref } from 'vue';
 
 // Forum categories
@@ -153,8 +153,8 @@ const forumStats = ref({
 <template>
     <AppLayout title="Forum">
         <div class="py-6">
-            <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-                <div class="mb-6 flex items-center justify-between">
+            <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between mb-6">
                     <h1 class="text-2xl font-semibold text-gray-800 dark:text-white">FloraFinder Forum</h1>
 
                     <div class="flex space-x-3">
@@ -167,7 +167,7 @@ const forumStats = ref({
                                 class="dark:bg-sidebar-item-active block w-full rounded-md border-0 py-1.5 pl-10 pr-3 text-gray-900 focus:ring-2 focus:ring-indigo-600 dark:text-white dark:focus:ring-indigo-500 sm:text-sm"
                             />
                             <div class="absolute inset-y-0 left-0 flex items-center pl-3">
-                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
                                     <path
                                         fill-rule="evenodd"
                                         d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z"
@@ -179,7 +179,7 @@ const forumStats = ref({
 
                         <button
                             @click="showNewTopicForm = true"
-                            class="inline-flex items-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
+                            class="inline-flex items-center px-4 py-2 text-sm font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
                         >
                             New Topic
                         </button>
@@ -187,22 +187,22 @@ const forumStats = ref({
                 </div>
 
                 <!-- Forum Categories -->
-                <div class="mb-8 overflow-hidden rounded-2xl border border-sidebar-border/70 bg-white shadow-sm dark:bg-sidebar">
-                    <div class="border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                <div class="mb-8 overflow-hidden bg-white border shadow-sm rounded-2xl border-sidebar-border/70 dark:bg-sidebar">
+                    <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 class="text-lg font-medium text-gray-800 dark:text-white">Categories</h2>
                     </div>
                     <div class="divide-y divide-gray-200 dark:divide-gray-700">
                         <div
                             v-for="category in categories"
                             :key="category.id"
-                            class="flex cursor-pointer items-start p-6 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                            class="flex items-start p-6 transition-colors cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                             :class="{ 'dark:bg-sidebar-item-active bg-gray-50': activeCategory === category.id }"
                             @click="filterByCategory(category.id)"
                         >
-                            <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-indigo-100 dark:bg-indigo-900/30">
+                            <div class="flex items-center justify-center flex-shrink-0 w-10 h-10 bg-indigo-100 rounded-full dark:bg-indigo-900/30">
                                 <svg
                                     xmlns="http://www.w3.org/2000/svg"
-                                    class="h-6 w-6 text-indigo-600 dark:text-indigo-400"
+                                    class="w-6 h-6 text-indigo-600 dark:text-indigo-400"
                                     viewBox="0 0 20 20"
                                     fill="currentColor"
                                 >
@@ -232,7 +232,7 @@ const forumStats = ref({
                                     />
                                 </svg>
                             </div>
-                            <div class="ml-4 flex-1">
+                            <div class="flex-1 ml-4">
                                 <h3 class="text-lg font-medium text-gray-800 dark:text-white">{{ category.name }}</h3>
                                 <p class="mt-1 text-sm text-gray-600 dark:text-gray-400">{{ category.description }}</p>
                                 <div class="mt-2 text-xs text-gray-500 dark:text-gray-500">{{ category.totalTopics }} topics</div>
@@ -242,8 +242,8 @@ const forumStats = ref({
                 </div>
 
                 <!-- Forum Topics -->
-                <div class="overflow-hidden rounded-2xl border border-sidebar-border/70 bg-white shadow-sm dark:bg-sidebar">
-                    <div class="flex items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700">
+                <div class="overflow-hidden bg-white border shadow-sm rounded-2xl border-sidebar-border/70 dark:bg-sidebar">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
                         <h2 class="text-lg font-medium text-gray-800 dark:text-white">
                             {{ activeCategory ? categories.find((c) => c.id === activeCategory)?.name + ' Topics' : 'Recent Topics' }}
                         </h2>
@@ -258,7 +258,7 @@ const forumStats = ref({
 
                     <div class="divide-y divide-gray-200 dark:divide-gray-700">
                         <!-- Search results -->
-                        <div v-if="searchQuery && searchResults.length > 0" class="bg-indigo-50 p-3 dark:bg-indigo-900/20">
+                        <div v-if="searchQuery && searchResults.length > 0" class="p-3 bg-indigo-50 dark:bg-indigo-900/20">
                             <p class="text-sm text-gray-700 dark:text-gray-300">Found {{ searchResults.length }} results for "{{ searchQuery }}"</p>
                         </div>
 
@@ -271,10 +271,10 @@ const forumStats = ref({
                             <div class="flex items-start">
                                 <div class="flex-1">
                                     <div class="flex items-center">
-                                        <span v-if="topic.pinned" class="mr-2 inline-flex">
+                                        <span v-if="topic.pinned" class="inline-flex mr-2">
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
-                                                class="h-4 w-4 text-indigo-500"
+                                                class="w-4 h-4 text-indigo-500"
                                                 viewBox="0 0 20 20"
                                                 fill="currentColor"
                                             >
@@ -289,7 +289,7 @@ const forumStats = ref({
                                             <a href="#">{{ topic.title }}</a>
                                         </h3>
                                     </div>
-                                    <div class="mt-1 flex flex-wrap gap-2">
+                                    <div class="flex flex-wrap gap-2 mt-1">
                                         <span
                                             class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800 dark:bg-blue-900/30 dark:text-blue-300"
                                         >
@@ -299,11 +299,11 @@ const forumStats = ref({
                                     </div>
                                 </div>
 
-                                <div class="ml-4 flex flex-col items-end text-sm text-gray-600 dark:text-gray-400">
+                                <div class="flex flex-col items-end ml-4 text-sm text-gray-600 dark:text-gray-400">
                                     <div class="flex items-center">
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            class="mr-1 h-4 w-4"
+                                            class="w-4 h-4 mr-1"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -317,10 +317,10 @@ const forumStats = ref({
                                         </svg>
                                         {{ topic.replies }} replies
                                     </div>
-                                    <div class="mt-1 flex items-center">
+                                    <div class="flex items-center mt-1">
                                         <svg
                                             xmlns="http://www.w3.org/2000/svg"
-                                            class="mr-1 h-4 w-4"
+                                            class="w-4 h-4 mr-1"
                                             fill="none"
                                             viewBox="0 0 24 24"
                                             stroke="currentColor"
@@ -360,7 +360,7 @@ const forumStats = ref({
                 </div>
 
                 <!-- Forum Stats -->
-                <div class="mt-8 rounded-2xl border border-sidebar-border/70 bg-white p-6 shadow-sm dark:bg-sidebar">
+                <div class="p-6 mt-8 bg-white border shadow-sm rounded-2xl border-sidebar-border/70 dark:bg-sidebar">
                     <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
                         <div class="text-center">
                             <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Topics</p>
@@ -385,9 +385,9 @@ const forumStats = ref({
 
         <!-- New Topic Modal -->
         <div v-if="showNewTopicForm" class="fixed inset-0 z-10 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+            <div class="flex items-end justify-center min-h-screen px-4 pt-4 pb-20 text-center sm:block sm:p-0">
                 <div
-                    class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity dark:bg-gray-900 dark:bg-opacity-75"
+                    class="fixed inset-0 transition-opacity bg-gray-500 bg-opacity-75 dark:bg-gray-900 dark:bg-opacity-75"
                     aria-hidden="true"
                     @click="showNewTopicForm = false"
                 ></div>
@@ -395,11 +395,11 @@ const forumStats = ref({
                 <span class="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
 
                 <div
-                    class="inline-block transform overflow-hidden rounded-lg bg-white text-left align-bottom shadow-xl transition-all dark:bg-sidebar sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
+                    class="inline-block overflow-hidden text-left align-bottom transition-all transform bg-white rounded-lg shadow-xl dark:bg-sidebar sm:my-8 sm:w-full sm:max-w-lg sm:align-middle"
                 >
-                    <div class="bg-white px-4 pb-4 pt-5 dark:bg-sidebar sm:p-6 sm:pb-4">
+                    <div class="px-4 pt-5 pb-4 bg-white dark:bg-sidebar sm:p-6 sm:pb-4">
                         <div class="sm:flex sm:items-start">
-                            <div class="mt-3 w-full text-center sm:ml-4 sm:mt-0 sm:text-left">
+                            <div class="w-full mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
                                 <h3 class="text-lg font-medium leading-6 text-gray-900 dark:text-white" id="modal-title">Create New Topic</h3>
                                 <div class="mt-4 space-y-4">
                                     <div>
@@ -408,7 +408,7 @@ const forumStats = ref({
                                             type="text"
                                             id="topic-title"
                                             v-model="newTopic.title"
-                                            class="dark:bg-sidebar-item-active mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
+                                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm dark:bg-sidebar-item-active focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
                                             placeholder="Enter topic title"
                                         />
                                     </div>
@@ -420,7 +420,7 @@ const forumStats = ref({
                                         <select
                                             id="topic-category"
                                             v-model="newTopic.category"
-                                            class="dark:bg-sidebar-item-active mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
+                                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm dark:bg-sidebar-item-active focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
                                         >
                                             <option value="" disabled>Select a category</option>
                                             <option v-for="category in categories" :key="category.id" :value="category.name">
@@ -435,7 +435,7 @@ const forumStats = ref({
                                             id="topic-content"
                                             v-model="newTopic.content"
                                             rows="5"
-                                            class="dark:bg-sidebar-item-active mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
+                                            class="block w-full mt-1 border-gray-300 rounded-md shadow-sm dark:bg-sidebar-item-active focus:border-indigo-500 focus:ring-indigo-500 dark:border-gray-600 dark:text-white sm:text-sm"
                                             placeholder="Write your post content here..."
                                         ></textarea>
                                     </div>
@@ -443,11 +443,11 @@ const forumStats = ref({
                             </div>
                         </div>
                     </div>
-                    <div class="border-t bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-sidebar sm:flex sm:flex-row-reverse sm:px-6">
+                    <div class="px-4 py-3 border-t bg-gray-50 dark:border-gray-700 dark:bg-sidebar sm:flex sm:flex-row-reverse sm:px-6">
                         <button
                             type="button"
                             @click="submitNewTopic"
-                            class="inline-flex w-full justify-center rounded-md border border-transparent bg-indigo-600 px-4 py-2 text-base font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
+                            class="inline-flex justify-center w-full px-4 py-2 text-base font-medium text-white bg-indigo-600 border border-transparent rounded-md shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm"
                             :disabled="!newTopic.title || !newTopic.category || !newTopic.content"
                         >
                             Post Topic
@@ -455,7 +455,7 @@ const forumStats = ref({
                         <button
                             type="button"
                             @click="showNewTopicForm = false"
-                            class="dark:bg-sidebar-item-active dark:hover:bg-sidebar-item-active mt-3 inline-flex w-full justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-base font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-300 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
+                            class="inline-flex justify-center w-full px-4 py-2 mt-3 text-base font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm dark:bg-sidebar-item-active dark:hover:bg-sidebar-item-active hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:border-gray-600 dark:text-gray-300 sm:ml-3 sm:mt-0 sm:w-auto sm:text-sm"
                         >
                             Cancel
                         </button>
