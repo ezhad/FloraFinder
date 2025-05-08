@@ -1,7 +1,11 @@
 <script setup lang="ts">
-import AppLayout from '@/layouts/AppLayout.vue';
-import { ref, reactive, onMounted, computed } from 'vue';
-import { router } from '@inertiajs/vue3';
+import AppLayout from "@/layouts/AppLayout.vue";
+import { ref, reactive, onMounted, computed } from "vue";
+import { router } from "@inertiajs/vue3";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import Icon from "@/components/Icon.vue";
+import { useToast } from "@/composables/useToast";
 
 // Define types
 interface FormData {
@@ -84,13 +88,15 @@ interface Errors {
 
 // Props
 const props = defineProps<{
-  plantData?: PlantResult
+  plantData?: PlantResult;
 }>();
+
+const { toast } = useToast();
 
 // State
 const form = reactive<FormData>({
   image: null,
-  organ: 'flower'
+  organ: "flower",
 });
 
 const imagePreview = ref<string | null>(null);
@@ -110,11 +116,13 @@ onMounted(() => {
 
 // Computed property to determine if we have results to show
 const hasResults = computed(() => {
-  return results.value &&
-         results.value.success &&
-         results.value.data &&
-         results.value.data.results &&
-         results.value.data.results.length > 0;
+  return (
+    results.value &&
+    results.value.success &&
+    results.value.data &&
+    results.value.data.results &&
+    results.value.data.results.length > 0
+  );
 });
 
 // Computed property for the selected result
@@ -152,13 +160,40 @@ const openFileUpload = (): void => {
   }
 };
 
+const handleDragOver = (e: DragEvent): void => {
+  if (e.target instanceof HTMLElement) {
+    e.target.classList.add("ring-2", "ring-green-400");
+  }
+};
+
+const handleDragLeave = (e: DragEvent): void => {
+  if (e.target instanceof HTMLElement) {
+    e.target.classList.remove("ring-2", "ring-green-400");
+  }
+};
+
+const handleDrop = (e: DragEvent): void => {
+  if (e.target instanceof HTMLElement) {
+    e.target.classList.remove("ring-2", "ring-green-400");
+  }
+
+  if (!processing.value && e.dataTransfer) {
+    const files = e.dataTransfer.files;
+    if (files && files.length) {
+      form.image = files[0];
+      imagePreview.value = URL.createObjectURL(files[0]);
+      errors.image = undefined;
+    }
+  }
+};
+
 const identifyPlant = async (): Promise<void> => {
   // Clear previous errors
-  Object.keys(errors).forEach(key => delete errors[key]);
+  Object.keys(errors).forEach((key) => delete errors[key]);
 
   // Validate
   if (!form.image) {
-    errors.image = 'Please select an image';
+    errors.image = "Please select an image";
     return;
   }
 
@@ -169,12 +204,12 @@ const identifyPlant = async (): Promise<void> => {
 
   // Create form data
   const formData = new FormData();
-  formData.append('image', form.image);
-  formData.append('organ', form.organ);
+  formData.append("image", form.image);
+  formData.append("organ", form.organ);
 
   // Send request
   try {
-    router.post(route('plant-identifier.identify'), formData, {
+    router.post(route("plant-identifier.identify"), formData, {
       onSuccess: (page) => {
         // Access the plant data directly from page props
         if (page.props.plantData) {
@@ -184,37 +219,46 @@ const identifyPlant = async (): Promise<void> => {
           if (results.value.success && results.value.data) {
             selectedResultIndex.value = 0;
             activeImageIndex.value = 0;
+            toast({
+              title: "Plant Identified",
+              description: "We've found potential matches for your plant.",
+              variant: "success",
+            });
           }
         } else {
           // Handle the case where no plant data was returned
           results.value = {
             success: false,
-            message: 'No plant data was returned from the server',
+            message: "No plant data was returned from the server",
           };
         }
       },
       onError: (validationErrors) => {
         Object.assign(errors, validationErrors);
+        toast({
+          title: "Identification Failed",
+          description: "Please check your inputs and try again.",
+          variant: "destructive",
+        });
       },
       onFinish: () => {
         processing.value = false;
       },
-      preserveScroll: true
+      preserveScroll: true,
     });
   } catch (error: any) {
     results.value = {
       success: false,
-      message: 'An unexpected error occurred',
-      error: error.message
+      message: "An unexpected error occurred",
+      error: error.message,
     };
     processing.value = false;
+    toast({
+      title: "Something went wrong",
+      description: error.message || "An unexpected error occurred.",
+      variant: "destructive",
+    });
   }
-};
-
-const getScoreClass = (score: number): string => {
-  if (score > 0.7) return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300';
-  if (score > 0.4) return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/50 dark:text-yellow-300';
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300';
 };
 
 const setActiveImage = (index: number): void => {
@@ -227,345 +271,632 @@ const selectResult = (index: number): void => {
 };
 
 const organs = [
-  { value: 'flower', label: 'Flower', icon: '🌸' },
-  { value: 'leaf', label: 'Leaf', icon: '🍃' },
-  { value: 'fruit', label: 'Fruit', icon: '🍎' },
-  { value: 'bark', label: 'Bark', icon: '🌳' },
-  { value: 'habit', label: 'Whole Plant', icon: '🪴' },
-  { value: 'other', label: 'Other', icon: '❓' },
+  { value: "flower", label: "Flower", icon: "flower" },
+  { value: "leaf", label: "Leaf", icon: "leaf" },
+  { value: "fruit", label: "Fruit", icon: "apple" },
+  { value: "bark", label: "Bark", icon: "tree" },
+  { value: "habit", label: "Whole Plant", icon: "sprout" },
+  { value: "other", label: "Other", icon: "help-circle" },
 ];
+
+// Dummy conservation guide function
+function getConservationAdvice(scientificName: string): string {
+  // You can expand this with more species or logic
+  switch (scientificName.toLowerCase()) {
+    case "rosa canina":
+      return "Protect from overharvesting. Encourage growth by pruning and avoid use of pesticides. Support local pollinators.";
+    case "quercus robur":
+      return "Preserve mature trees, avoid soil compaction around roots, and support natural regeneration.";
+    default:
+      return "Maintain natural habitat, avoid overharvesting, and support local biodiversity. Consult local experts for more details.";
+  }
+}
 </script>
 
 <template>
-  <AppLayout title="Plant Identification">
-    <div class="py-6">
-      <div class="px-4 mx-auto max-w-7xl sm:px-6 lg:px-8">
-        <!-- Hero Section -->
-        <div class="mb-8">
-          <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Plant Identification</h1>
-          <p class="mt-2 text-gray-600 dark:text-gray-400">
-            Upload a photo of a plant to identify it using our advanced AI technology.
-          </p>
-        </div>
-
-        <div class="grid grid-cols-1 gap-8 lg:grid-cols-3">
-          <!-- Upload Panel -->
-          <div class="col-span-1 space-y-6 lg:col-span-1">
-            <div class="overflow-hidden bg-white shadow-md rounded-xl dark:bg-gray-800">
-              <div class="p-5 border-b border-gray-200 bg-gradient-to-br from-green-500 to-emerald-600 dark:border-gray-700">
-                <h2 class="text-xl font-semibold text-white">Upload Image</h2>
-                <p class="mt-1 text-sm text-green-100">Take a clear photo for best results</p>
+  <AppLayout title="Plant Identifier">
+    <!-- Main Content -->
+    <div class="px-4 py-8 mx-auto max-w-7xl sm:px-6 lg:px-8">
+      <div class="grid grid-cols-1 gap-8 md:grid-cols-12">
+        <!-- Left Column: Upload Panel -->
+        <div class="md:col-span-5 lg:col-span-4">
+          <Card
+            class="overflow-hidden border-0 shadow-xl rounded-3xl backdrop-blur-md bg-white/70 dark:bg-moss-900/60 ring-1 ring-moss-200 dark:ring-moss-800"
+          >
+            <CardHeader
+              class="pb-6 border-b-0 shadow-sm text-moss-900 dark:text-white bg-gradient-to-r from-moss-100/80 to-moss-200/60 dark:from-moss-900/80 dark:to-moss-800/60 rounded-t-3xl"
+            >
+              <div class="flex items-center justify-center">
+                <Icon name="camera" class="w-5 h-5 mr-2 text-moss-400" />
+                <h2 class="text-lg font-semibold tracking-tight">Upload Plant Image</h2>
+              </div>
+            </CardHeader>
+            <CardContent class="px-8 py-8 space-y-8 bg-transparent">
+              <!-- Image Upload Area -->
+              <div>
+                <div
+                  class="group relative cursor-pointer overflow-hidden rounded-2xl border-2 border-dashed border-moss-300 dark:border-moss-700 bg-white/60 dark:bg-moss-900/40 hover:bg-moss-100/60 dark:hover:bg-moss-800/40 transition-all shadow-inner min-h-[180px] flex flex-col items-center justify-center backdrop-blur-md"
+                  :class="{ 'border-none': imagePreview }"
+                  @click="!processing && openFileUpload()"
+                  @dragover.prevent="handleDragOver"
+                  @dragleave.prevent="handleDragLeave"
+                  @drop.prevent="handleDrop"
+                >
+                  <div
+                    v-if="!imagePreview"
+                    class="flex flex-col items-center justify-center px-6 py-10 text-center"
+                  >
+                    <p
+                      class="mb-2 text-base font-medium tracking-tight text-moss-700 dark:text-moss-200"
+                    >
+                      Drag & drop or click to upload
+                    </p>
+                    <p class="text-xs text-moss-500 dark:text-moss-400">
+                      JPG, PNG or GIF (max 10MB)
+                    </p>
+                    <div
+                      class="flex items-center gap-2 mt-4 text-xs text-moss-400 dark:text-moss-400"
+                    >
+                      <Icon name="info" class="w-3 h-3" />
+                      <span>Clear, well-lit photos yield the best results</span>
+                    </div>
+                  </div>
+                  <div
+                    v-else
+                    class="relative aspect-[4/3] w-full overflow-hidden rounded-2xl shadow-lg"
+                  >
+                    <img
+                      :src="imagePreview"
+                      alt="Plant preview"
+                      class="object-cover w-full h-full transition-transform duration-200 group-hover:scale-105"
+                    />
+                    <div
+                      class="absolute inset-0 flex flex-col items-center justify-center gap-2 transition-opacity opacity-0 bg-black/30 group-hover:opacity-100 backdrop-blur-sm"
+                    >
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="rounded-full shadow text-moss-800 bg-white/90 hover:bg-white"
+                        @click.stop="openFileUpload"
+                      >
+                        <Icon name="image" class="w-4 h-4 mr-1" />
+                        Change Image
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        class="text-red-700 border-red-300 rounded-full shadow bg-white/90 hover:bg-red-50"
+                        @click.stop="resetForm"
+                      >
+                        <Icon name="x" class="w-4 h-4 mr-1" />
+                        Clear Image
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+                <input
+                  ref="fileUploadRef"
+                  type="file"
+                  class="hidden"
+                  accept="image/*"
+                  @change="onImageChange"
+                />
+                <p
+                  v-if="errors.image"
+                  class="mt-2 text-xs font-medium text-red-600 dark:text-red-400"
+                >
+                  {{ errors.image }}
+                </p>
+                <div v-if="imagePreview" class="flex justify-center mt-3 md:hidden">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="text-red-700 border-red-300 rounded-full shadow bg-white/90 hover:bg-red-50"
+                    @click="resetForm"
+                  >
+                    <Icon name="x" class="w-4 h-4 mr-1" />
+                    Clear Image
+                  </Button>
+                </div>
+              </div>
+              <!-- Plant Part Selector -->
+              <div>
+                <h3
+                  class="mb-3 text-sm font-semibold tracking-tight text-sage-700 dark:text-sage-200"
+                >
+                  Select Plant Part
+                </h3>
+                <div class="grid grid-cols-3 gap-3" @click.stop>
+                  <div
+                    v-for="organ in organs"
+                    :key="organ.value"
+                    class="relative cursor-pointer group"
+                    @click.stop="!processing && (form.organ = organ.value)"
+                    :aria-pressed="form.organ === organ.value"
+                    role="button"
+                    tabindex="0"
+                    @keydown.enter.space="!processing && (form.organ = organ.value)"
+                  >
+                    <div
+                      class="flex flex-col items-center justify-center p-3 transition-all rounded-xl border shadow-sm duration-200"
+                      :class="
+                        form.organ === organ.value
+                          ? 'border-moss-600 bg-moss-50/90 dark:border-moss-400 dark:bg-moss-900/60 shadow-lg ring-2 ring-moss-400 scale-105'
+                          : 'border-sage-200 bg-white/70 hover:border-moss-300 hover:bg-moss-50/60 dark:border-sage-700 dark:bg-sage-900/40 dark:hover:border-moss-500 dark:hover:bg-moss-900/30'
+                      "
+                    >
+                      <span
+                        :class="
+                          form.organ === organ.value ? 'text-3xl' : 'text-2xl opacity-80'
+                        "
+                      >
+                        {{
+                          organ.value === "flower"
+                            ? "🌸"
+                            : organ.value === "leaf"
+                            ? "🍃"
+                            : organ.value === "fruit"
+                            ? "🍎"
+                            : organ.value === "bark"
+                            ? "🌳"
+                            : organ.value === "habit"
+                            ? "🌱"
+                            : "❓"
+                        }}
+                      </span>
+                      <span
+                        class="mt-1 text-xs font-medium transition-colors duration-200"
+                        :class="
+                          form.organ === organ.value
+                            ? 'text-moss-900 dark:text-moss-200 font-semibold'
+                            : 'text-sage-600 dark:text-sage-400'
+                        "
+                      >
+                        {{ organ.label }}
+                      </span>
+                      <span
+                        v-if="form.organ === organ.value"
+                        class="absolute top-2 right-2 w-2.5 h-2.5 rounded-full bg-moss-500 shadow-md border-2 border-white dark:border-moss-900"
+                        aria-label="Selected"
+                      ></span>
+                    </div>
+                  </div>
+                </div>
               </div>
 
-              <div class="p-5">
-                <form @submit.prevent="identifyPlant" class="space-y-5">
-                  <!-- Image Upload -->
-                  <div>
-                    <label class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Plant Image</label>
-                    <div
-                      class="flex justify-center px-6 pt-5 pb-6 mt-1 transition-colors border-2 border-gray-300 border-dashed rounded-lg cursor-pointer hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500"
-                      :class="{ 'border-green-500 dark:border-green-500': imagePreview }"
-                      @click="!imagePreview && openFileUpload()"
-                    >
-                      <div v-if="!imagePreview" class="space-y-2 text-center">
-                        <div class="flex items-center justify-center w-12 h-12 mx-auto bg-green-100 rounded-full dark:bg-green-900/30">
-                          <svg
-                            class="w-6 h-6 text-green-600 dark:text-green-400"
-                            stroke="currentColor"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              stroke-width="2"
-                              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                            />
-                          </svg>
-                        </div>
-                        <div class="flex justify-center text-sm">
-                          <label
-                            for="file-upload"
-                            class="relative font-medium text-green-600 rounded-md cursor-pointer hover:text-green-500 dark:text-green-400 dark:hover:text-green-300"
-                          >
-                            <span>Upload a photo</span>
-                            <input
-                              id="file-upload"
-                              ref="fileUploadRef"
-                              name="file-upload"
-                              type="file"
-                              class="sr-only"
-                              @change="onImageChange"
-                              accept="image/*"
-                            />
-                          </label>
-                          <p class="pl-1 text-gray-500 dark:text-gray-400">or drag and drop</p>
-                        </div>
-                        <p class="text-xs text-gray-500 dark:text-gray-400">PNG, JPG, GIF up to 10MB</p>
-                      </div>
-                      <div v-else class="relative w-full">
-                        <img :src="imagePreview" class="object-contain mx-auto rounded-md max-h-56" alt="Plant preview" />
-                        <button
-                          type="button"
-                          class="absolute top-0 right-0 p-1 text-red-600 bg-red-100 rounded-full hover:bg-red-200 hover:text-red-800 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50"
-                          @click.stop="resetForm"
+              <!-- Identify Button -->
+              <Button
+                class="w-full text-white transition-all duration-200 shadow-lg bg-gradient-to-r from-black to-black/80 hover:from-black/90 hover:to-black dark:text-white rounded-xl"
+                size="lg"
+                :disabled="processing || !imagePreview"
+                @click="identifyPlant"
+              >
+                <div class="flex items-center justify-center">
+                  <template v-if="processing">
+                    <Icon name="loader-2" class="w-4 h-4 mr-2 animate-spin" />
+                    Identifying...
+                  </template>
+                  <template v-else>
+                    <Icon name="search" class="w-4 h-4 mr-2" />
+                    Identify Plant
+                  </template>
+                </div>
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+
+        <!-- Right Column: Results -->
+        <div class="space-y-6 md:col-span-7 lg:col-span-8">
+          <!-- Loading State -->
+          <Card
+            v-if="processing"
+            class="overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-black/60 rounded-3xl backdrop-blur-md"
+          >
+            <CardContent
+              class="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div
+                class="p-4 mb-4 rounded-full shadow-lg animate-bounce bg-gradient-to-br from-green-400/40 to-green-700/40"
+              >
+                <Icon name="loader-2" class="w-10 h-10 text-green-500 animate-spin" />
+              </div>
+              <h3
+                class="text-lg font-semibold tracking-tight text-sage-900 dark:text-white"
+              >
+                Identifying Your Plant
+              </h3>
+              <p class="mt-2 text-base text-black dark:text-black">
+                We're analyzing your image using AI to determine the plant species.
+              </p>
+            </CardContent>
+          </Card>
+
+          <!-- Error State -->
+          <Card
+            v-else-if="results && !results.success"
+            class="overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-black/60 rounded-3xl backdrop-blur-md"
+          >
+            <CardContent
+              class="flex flex-col items-center justify-center py-20 text-center"
+            >
+              <div class="p-4 mb-4 rounded-full shadow bg-red-900/30">
+                <Icon name="x-circle" class="w-10 h-10 text-red-500" />
+              </div>
+              <h3 class="text-lg font-semibold tracking-tight text-red-500">
+                Identification Failed
+              </h3>
+              <p class="mt-2 text-base text-gray-500 dark:text-gray-300">
+                {{ results.message || "An error occurred while identifying your plant." }}
+              </p>
+              <p
+                v-if="results.error"
+                class="mt-4 text-xs text-gray-600 dark:text-gray-400"
+              >
+                {{ results.error }}
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                class="mt-6 text-gray-700 border-gray-300 rounded-full hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                @click="resetForm"
+              >
+                <Icon name="refresh-cw" class="w-4 h-4 mr-2" /> Try Again
+              </Button>
+            </CardContent>
+          </Card>
+
+          <!-- Results Display -->
+          <template v-else-if="hasResults">
+            <!-- Primary Result -->
+            <Card
+              class="overflow-hidden border-0 shadow-xl rounded-3xl backdrop-blur-md bg-white/80 dark:bg-sage-900/60 ring-1 ring-sage-200 dark:ring-sage-800"
+            >
+              <CardHeader
+                class="pb-6 border-b-0 shadow-sm text-sage-900 dark:text-white bg-gradient-to-r from-sage-100/80 to-sage-200/60 dark:from-sage-900/80 dark:to-sage-800/60 rounded-t-3xl"
+              >
+                <div class="flex items-center">
+                  <Icon name="check-circle" class="w-5 h-5 mr-2 text-moss-400" />
+                  <h2 class="text-lg font-semibold tracking-tight">
+                    Identification Result
+                  </h2>
+                  <span
+                    v-if="selectedResult"
+                    class="ml-auto rounded-full px-2 py-0.5 text-xs font-medium shadow"
+                    :class="
+                      (selectedResult.score || 0) > 0.5
+                        ? 'bg-green-600 text-white'
+                        : (selectedResult.score || 0) > 0.25
+                        ? 'bg-yellow-400 text-yellow-900'
+                        : 'bg-red-600 text-white'
+                    "
+                  >
+                    {{ Math.round((selectedResult?.score || 0) * 100) }}% confidence
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent class="px-8 py-8">
+                <div class="grid grid-cols-1 gap-8 md:grid-cols-12">
+                  <!-- Image Gallery -->
+                  <div class="md:col-span-5">
+                    <div class="space-y-6">
+                      <div
+                        class="overflow-hidden shadow-lg rounded-2xl bg-white/60 dark:bg-sage-900/40"
+                      >
+                        <img
+                          v-if="selectedResult && selectedResult.images?.length"
+                          :src="selectedResult.images[activeImageIndex].url.m"
+                          class="object-cover w-full h-72 md:h-96 rounded-2xl"
+                          alt="Plant image"
+                        />
+                        <div
+                          v-else
+                          class="flex items-center justify-center w-full bg-gray-100 h-72 rounded-2xl md:h-96 dark:bg-gray-700"
                         >
-                          <svg class="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
-                            <path
-                              fill-rule="evenodd"
-                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 111.414 1.414L11.414 10l4.293 4.293a1 1 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 01-1.414-1.414L8.586 10 4.293 5.707a1 1 010-1.414z"
-                              clip-rule="evenodd"
-                            />
-                          </svg>
+                          <Icon
+                            name="image-off"
+                            class="w-12 h-12 text-gray-400 dark:text-gray-500"
+                          />
+                        </div>
+                      </div>
+
+                      <!-- Image Thumbnails -->
+                      <div
+                        v-if="
+                          selectedResult &&
+                          selectedResult.images &&
+                          selectedResult.images.length > 1
+                        "
+                        class="flex pb-1 space-x-3 overflow-auto"
+                      >
+                        <button
+                          v-for="(img, idx) in selectedResult.images"
+                          :key="idx"
+                          @click="setActiveImage(idx)"
+                          class="flex-shrink-0 overflow-hidden transition-all border-2 rounded-lg shadow-sm hover:scale-105"
+                          :class="
+                            activeImageIndex === idx
+                              ? 'border-green-500 dark:border-green-400 shadow-md'
+                              : 'border-transparent hover:border-gray-300 dark:hover:border-gray-600'
+                          "
+                        >
+                          <img
+                            :src="img.url.s"
+                            class="object-cover w-16 h-16 rounded-lg"
+                            alt="Thumbnail"
+                          />
                         </button>
                       </div>
                     </div>
-                    <p v-if="errors.image" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ errors.image }}</p>
                   </div>
 
-                  <!-- Plant Organ Selection -->
-                  <div>
-                    <label for="organ" class="block mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">Plant Part</label>
-                    <div class="grid grid-cols-3 gap-2">
-                      <div
-                        v-for="organ in organs"
-                        :key="organ.value"
-                        @click="form.organ = organ.value"
-                        class="flex flex-col items-center p-3 transition-all border rounded-md cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-750"
-                        :class="{
-                          'border-green-500 bg-green-50 dark:border-green-500 dark:bg-green-900/20': form.organ === organ.value,
-                          'border-gray-200 dark:border-gray-700': form.organ !== organ.value
-                        }"
-                      >
-                        <span class="text-xl">{{ organ.icon }}</span>
-                        <span class="mt-1 text-xs text-gray-700 dark:text-gray-300">{{ organ.label }}</span>
-                      </div>
-                    </div>
-                    <p v-if="errors.organ" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ errors.organ }}</p>
-                  </div>
-
-                  <!-- Submit Button -->
-                  <div>
-                    <button
-                      type="submit"
-                      class="flex items-center justify-center w-full px-4 py-3 text-sm font-medium text-white transition-colors bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:bg-green-700 dark:hover:bg-green-600"
-                      :disabled="processing"
-                    >
-                      <svg
-                        v-if="processing"
-                        class="w-5 h-5 mr-3 -ml-1 text-white animate-spin"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path
-                          class="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      <span>{{ processing ? 'Analyzing Image...' : 'Identify Plant' }}</span>
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </div>
-          </div>
-
-          <!-- Results Panel -->
-          <div class="col-span-1 lg:col-span-2">
-            <div v-if="hasResults" class="overflow-hidden bg-white shadow-md rounded-xl dark:bg-gray-800">
-              <div class="p-5 border-b border-gray-200 bg-gradient-to-br from-green-500 to-emerald-600 dark:border-gray-700">
-                <h2 class="text-xl font-semibold text-white">Identification Results</h2>
-                <p class="mt-1 text-sm text-green-100">Here are the plants that match your image</p>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                <!-- Main Image Display -->
-                <div class="col-span-1">
-                  <div v-if="selectedResult && selectedResult.images && selectedResult.images.length > 0" class="relative h-64 overflow-hidden rounded-lg">
-                    <img
-                      :src="selectedResult.images[activeImageIndex].url.m"
-                      class="object-cover w-full h-full"
-                      alt="Plant Image"
-                    />
-                    <div class="absolute bottom-0 left-0 right-0 p-2 text-xs text-white bg-black bg-opacity-50">
-                      {{ selectedResult.images[activeImageIndex].author || 'Unknown author' }}
-                    </div>
-                  </div>
-                  <div v-else class="flex items-center justify-center h-64 bg-gray-100 rounded-lg dark:bg-gray-700">
-                    <p class="text-gray-500 dark:text-gray-400">No image available</p>
-                  </div>
-
-                  <!-- Image Thumbnails -->
-                  <div v-if="selectedResult && selectedResult.images && selectedResult.images.length > 1" class="flex mt-2 space-x-2 overflow-x-auto">
-                    <button
-                      v-for="(image, index) in selectedResult.images"
-                      :key="index"
-                      @click="setActiveImage(index)"
-                      class="flex-shrink-0 w-16 h-16 overflow-hidden rounded-md focus:outline-none"
-                      :class="{ 'ring-2 ring-green-500': activeImageIndex === index }"
-                    >
-                      <img :src="image.url.s" class="object-cover w-full h-full" alt="Thumbnail" />
-                    </button>
-                  </div>
-                </div>
-
-                <!-- Result Details -->
-                <div class="col-span-1">
-                  <div v-if="selectedResult" class="space-y-4">
-                    <div>
-                      <h3 class="text-xl font-medium text-gray-900 dark:text-white">
-                        {{ selectedResult.species.scientificName }}
-                      </h3>
-                      <p class="text-sm text-gray-600 dark:text-gray-400" v-if="selectedResult.species.commonNames && selectedResult.species.commonNames.length">
-                        {{ selectedResult.species.commonNames.join(', ') }}
-                      </p>
-                    </div>
-
-                    <div>
-                      <div class="flex items-center">
-                        <span class="text-sm font-medium text-gray-700 dark:text-gray-300">Confidence:</span>
-                        <span
-                          class="ml-2 px-2 py-0.5 text-xs font-medium rounded-full"
-                          :class="getScoreClass(selectedResult.score)"
+                  <!-- Plant Information -->
+                  <div class="md:col-span-7">
+                    <div class="space-y-6">
+                      <div>
+                        <h3
+                          class="flex items-center gap-2 text-2xl font-bold leading-tight tracking-tight text-sage-900 dark:text-white"
                         >
-                          {{ Math.round(selectedResult.score * 100) }}%
-                        </span>
+                          {{ selectedResult?.species.commonNames?.[0] || "Unknown" }}
+                          <span
+                            class="ml-2 text-lg italic font-normal text-sage-500 dark:text-sage-300"
+                            >({{ selectedResult?.species.scientificName }})</span
+                          >
+                        </h3>
+                        <div class="flex flex-wrap gap-2 mt-3">
+                          <span
+                            v-if="selectedResult?.iucn?.category"
+                            :class="[
+                              'inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold shadow',
+                              selectedResult.iucn.category === 'Endangered'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-yellow-100 text-yellow-800',
+                            ]"
+                          >
+                            <Icon name="alert-triangle" class="w-3 h-3 mr-1" />
+                            {{ selectedResult.iucn.category }}
+                          </span>
+                          <span
+                            class="inline-flex items-center rounded-full bg-green-100 px-2 py-0.5 text-xs font-semibold text-green-800 shadow"
+                          >
+                            <Icon name="leaf" class="w-3 h-3 mr-1" />
+                            Habitat: Forest
+                          </span>
+                          <span
+                            class="inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 shadow"
+                          >
+                            <Icon name="clock" class="w-3 h-3 mr-1" />
+                            Lifespan: Perennial
+                          </span>
+                          <span
+                            class="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-semibold text-blue-800 shadow"
+                          >
+                            <Icon name="watering-can" class="w-3 h-3 mr-1" />
+                            Care: Moderate
+                          </span>
+                        </div>
                       </div>
-                    </div>
-
-                    <div class="space-y-1">
-                      <p class="text-sm font-medium text-gray-700 dark:text-gray-300">Taxonomy</p>
-                      <div class="p-3 text-sm rounded-md bg-gray-50 dark:bg-gray-750">
-                        <div class="grid grid-cols-2 gap-y-1">
-                          <span class="text-gray-600 dark:text-gray-400">Family:</span>
-                          <span class="font-medium text-gray-900 dark:text-white">{{ selectedResult.species.family.scientificNameWithoutAuthor }}</span>
-
-                          <span class="text-gray-600 dark:text-gray-400">Genus:</span>
-                          <span class="font-medium text-gray-900 dark:text-white">{{ selectedResult.species.genus.scientificNameWithoutAuthor }}</span>
-
-                          <span class="text-gray-600 dark:text-gray-400">Species:</span>
-                          <span class="font-medium text-gray-900 dark:text-white">{{ selectedResult.species.scientificNameWithoutAuthor }}</span>
+                      <div
+                        class="grid grid-cols-2 gap-6 p-6 text-sm shadow rounded-2xl bg-sage-50/80 dark:bg-sage-800/40"
+                      >
+                        <div>
+                          <p
+                            class="text-xs font-semibold tracking-wide uppercase text-sage-500 dark:text-sage-400"
+                          >
+                            Family
+                          </p>
+                          <p class="mt-1 font-medium text-sage-900 dark:text-white">
+                            {{
+                              selectedResult?.species.family.scientificNameWithoutAuthor
+                            }}
+                          </p>
+                        </div>
+                        <div>
+                          <p
+                            class="text-xs font-semibold tracking-wide uppercase text-sage-500 dark:text-sage-400"
+                          >
+                            Genus
+                          </p>
+                          <p class="mt-1 font-medium text-sage-900 dark:text-white">
+                            {{
+                              selectedResult?.species.genus.scientificNameWithoutAuthor
+                            }}
+                          </p>
+                        </div>
+                      </div>
+                      <!-- External Links -->
+                      <div class="flex flex-wrap gap-2">
+                        <a
+                          v-if="selectedResult?.gbif?.id"
+                          :href="`https://www.gbif.org/species/${selectedResult.gbif.id}`"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full shadow text-sage-800 bg-sage-100 hover:bg-sage-200 dark:bg-sage-700 dark:text-sage-200 dark:hover:bg-sage-600"
+                        >
+                          <Icon name="external-link" class="w-3 h-3 mr-1" /> GBIF Database
+                        </a>
+                        <a
+                          v-if="selectedResult?.powo?.id"
+                          :href="`http://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:${selectedResult.powo.id}`"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="inline-flex items-center px-3 py-1 text-xs font-medium rounded-full shadow text-sage-800 bg-sage-100 hover:bg-sage-200 dark:bg-sage-700 dark:text-sage-200 dark:hover:bg-sage-600"
+                        >
+                          <Icon name="external-link" class="w-3 h-3 mr-1" /> Kew Science
+                        </a>
+                      </div>
+                      <!-- Conservation Guide Section -->
+                      <div
+                        class="p-6 mt-4 shadow rounded-2xl bg-gradient-to-br from-green-100/80 to-green-200/60 dark:from-green-900/30 dark:to-green-800/30"
+                      >
+                        <h4
+                          class="mb-2 font-semibold tracking-tight text-green-700 dark:text-green-300"
+                        >
+                          Conservation Guide
+                        </h4>
+                        <p class="text-sm text-sage-800 dark:text-sage-200">
+                          {{
+                            getConservationAdvice(
+                              selectedResult?.species.scientificNameWithoutAuthor || ""
+                            )
+                          }}
+                        </p>
+                        <p class="mt-2 text-xs text-sage-500 dark:text-sage-400">
+                          This is a general guide. For critical conservation, consult
+                          local experts.
+                        </p>
+                      </div>
+                      <!-- Action Buttons -->
+                      <div class="flex gap-3 mt-4">
+                        <Button
+                          variant="outline"
+                          class="flex items-center gap-1 transition-all rounded-full shadow-sm hover:bg-green-50 dark:hover:bg-green-900/30"
+                        >
+                          <Icon name="bookmark" class="w-4 h-4" /> Bookmark
+                        </Button>
+                        <Button
+                          variant="outline"
+                          class="flex items-center gap-1 transition-all rounded-full shadow-sm hover:bg-green-50 dark:hover:bg-green-900/30"
+                        >
+                          <Icon name="map-pin" class="w-4 h-4" /> Report Sighting
+                        </Button>
+                        <Button
+                          variant="outline"
+                          class="flex items-center gap-1 transition-all rounded-full shadow-sm hover:bg-green-50 dark:hover:bg-green-900/30"
+                        >
+                          <Icon name="info" class="w-4 h-4" /> More Info
+                        </Button>
+                      </div>
+                      <!-- User Feedback Section -->
+                      <div
+                        class="p-6 mt-6 rounded-2xl bg-sage-50/80 dark:bg-sage-800/40 shadow"
+                      >
+                        <div class="flex items-center gap-3 mb-2">
+                          <span
+                            class="font-medium text-sage-700 dark:text-sage-200 tracking-tight"
+                            >Was this identification accurate?</span
+                          >
+                          <button
+                            class="p-2 transition rounded-full hover:bg-green-100 dark:hover:bg-green-900/30"
+                          >
+                            <Icon name="thumbs-up" class="w-5 h-5 text-green-600" />
+                          </button>
+                          <button
+                            class="p-2 transition rounded-full hover:bg-red-100 dark:hover:bg-red-900/30"
+                          >
+                            <Icon name="thumbs-down" class="w-5 h-5 text-red-500" />
+                          </button>
+                        </div>
+                        <textarea
+                          rows="2"
+                          placeholder="Add a comment or correction..."
+                          class="w-full px-3 py-2 text-sm transition border rounded-lg text-sage-800 bg-white/80 border-sage-200 dark:border-sage-700 dark:bg-sage-900/40 dark:text-sage-100 focus:ring-2 focus:ring-green-400"
+                        ></textarea>
+                        <div class="flex justify-end mt-2">
+                          <Button
+                            size="sm"
+                            class="text-white bg-black rounded-full shadow hover:bg-black/80"
+                            >Submit Feedback</Button
+                          >
                         </div>
                       </div>
                     </div>
-
-                    <!-- External links if available -->
-                    <div v-if="selectedResult.gbif || selectedResult.powo || selectedResult.iucn" class="flex flex-wrap gap-2">
-                      <a
-                        v-if="selectedResult.gbif"
-                        :href="`https://www.gbif.org/species/${selectedResult.gbif.id}`"
-                        target="_blank"
-                        class="px-3 py-1 text-xs font-medium text-blue-700 bg-blue-100 rounded-full hover:bg-blue-200 dark:bg-blue-900/30 dark:text-blue-400"
-                      >
-                        GBIF Database
-                      </a>
-                      <a
-                        v-if="selectedResult.powo"
-                        :href="`https://powo.science.kew.org/taxon/urn:lsid:ipni.org:names:${selectedResult.powo.id}`"
-                        target="_blank"
-                        class="px-3 py-1 text-xs font-medium text-green-700 bg-green-100 rounded-full hover:bg-green-200 dark:bg-green-900/30 dark:text-green-400"
-                      >
-                        Plants of the World
-                      </a>
-                      <a
-                        v-if="selectedResult.iucn"
-                        :href="`https://www.iucnredlist.org/species/${selectedResult.iucn.id}`"
-                        target="_blank"
-                        class="px-3 py-1 text-xs font-medium text-red-700 bg-red-100 rounded-full hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400"
-                      >
-                        IUCN Conservation Status: {{ selectedResult.iucn.category }}
-                      </a>
-                    </div>
                   </div>
                 </div>
+              </CardContent>
+            </Card>
+
+            <!-- Alternative Results -->
+            <div v-if="results?.data?.results && results.data.results.length > 1">
+              <div class="flex items-center justify-between mb-3">
+                <h3 class="text-lg font-medium text-gray-900 dark:text-white">
+                  Alternative Matches
+                </h3>
+                <span class="text-sm text-gray-500 dark:text-gray-400">
+                  {{ results.data.results.length - 1 }} other possibilities
+                </span>
               </div>
 
-              <!-- Other Results -->
-              <div class="p-5 border-t border-gray-200 dark:border-gray-700">
-                <h3 class="mb-3 text-lg font-medium text-gray-900 dark:text-white">Other Possibilities</h3>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3">
-                  <button
-                    v-for="(result, index) in results.data.results"
-                    :key="index"
-                    @click="selectResult(index)"
-                    class="flex flex-col items-start p-3 text-left transition-colors border rounded-lg cursor-pointer hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-750"
-                    :class="{
-                      'border-green-500 bg-green-50 dark:border-green-500/20 dark:bg-green-900/20': selectedResultIndex === index,
-                      'border-gray-200 dark:border-gray-700': selectedResultIndex !== index
-                    }"
-                  >
-                    <div class="flex items-center justify-between w-full mb-2">
-                      <span class="font-medium text-gray-900 truncate dark:text-white" style="max-width: 80%;">
-                        {{ result.species.scientificNameWithoutAuthor }}
-                      </span>
-                      <span
-                        class="px-2 py-0.5 text-xs font-medium rounded-full"
-                        :class="getScoreClass(result.score)"
-                      >
-                        {{ Math.round(result.score * 100) }}%
-                      </span>
+              <div
+                class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              >
+                <Card
+                  v-for="(result, idx) in results.data.results"
+                  :key="idx"
+                  :class="[
+                    'cursor-pointer overflow-hidden hover:shadow-md transition-shadow bg-white dark:bg-gray-800/60',
+                    selectedResultIndex === idx
+                      ? 'ring-2 ring-green-500 dark:ring-green-400'
+                      : '',
+                  ]"
+                  @click="selectResult(idx)"
+                >
+                  <div class="relative">
+                    <img
+                      v-if="result.images && result.images.length"
+                      :src="result.images[0].url.s"
+                      class="object-cover w-full h-32 rounded-t-lg"
+                      alt="Plant image"
+                    />
+                    <div
+                      v-else
+                      class="flex items-center justify-center w-full h-32 bg-gray-100 rounded-t-lg dark:bg-gray-700"
+                    >
+                      <Icon
+                        name="image-off"
+                        class="w-8 h-8 text-gray-400 dark:text-gray-500"
+                      />
                     </div>
-                    <span class="text-xs text-gray-600 truncate dark:text-gray-400" style="max-width: 100%;">
-                      {{ result.species.commonNames && result.species.commonNames.length ? result.species.commonNames[0] : 'No common name' }}
+                    <span
+                      class="absolute top-2 right-2 rounded-full px-2 py-0.5 text-xs font-medium shadow"
+                      :class="
+                        (result.score || 0) > 0.5
+                          ? 'bg-green-600 text-white'
+                          : (result.score || 0) > 0.25
+                          ? 'bg-yellow-400 text-yellow-900'
+                          : 'bg-red-600 text-white'
+                      "
+                    >
+                      {{ Math.round((result.score || 0) * 100) }}%
                     </span>
-                  </button>
-                </div>
+                  </div>
+                  <div class="p-3">
+                    <div class="font-semibold truncate text-sage-900 dark:text-white">
+                      {{ result.species.commonNames?.[0] || "Unknown" }}
+                    </div>
+                    <div class="text-xs italic truncate text-sage-500 dark:text-sage-300">
+                      {{ result.species.scientificName }}
+                    </div>
+                  </div>
+                </Card>
               </div>
             </div>
+          </template>
 
-            <!-- No Results State -->
-            <div v-else-if="results && !results.success" class="p-5 overflow-hidden bg-white shadow-md rounded-xl dark:bg-gray-800">
-              <div class="flex flex-col items-center justify-center py-8 text-center">
-                <div class="flex items-center justify-center w-16 h-16 mb-4 bg-red-100 rounded-full dark:bg-red-900/20">
-                  <svg class="w-8 h-8 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm-1-9h2V7H9v2zm0 4h2v-2H9v2z" clip-rule="evenodd" />
-                  </svg>
-                </div>
-                <h3 class="mb-1 text-lg font-medium text-gray-900 dark:text-white">Identification Failed</h3>
-                <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">{{ results.message || results.error || 'We couldn\'t identify your plant. Please try again with a clearer photo.' }}</p>
-                <button
-                  @click="resetForm"
-                  class="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:bg-green-700 dark:hover:bg-green-600"
-                >
-                  Try Again
-                </button>
-              </div>
-            </div>
-
-            <!-- Processing State -->
-            <div v-else-if="processing" class="p-5 overflow-hidden bg-white shadow-md rounded-xl dark:bg-gray-800">
-              <div class="flex flex-col items-center justify-center py-8 text-center">
-                <svg class="w-12 h-12 mb-4 text-green-600 animate-spin dark:text-green-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <h3 class="mb-1 text-lg font-medium text-gray-900 dark:text-white">Analyzing Your Plant</h3>
-                <p class="text-sm text-gray-600 dark:text-gray-400">This might take a few moments.</p>
-              </div>
-            </div>
-
-            <!-- Waiting for Upload State -->
-            <div v-else class="p-5 overflow-hidden bg-white shadow-md rounded-xl dark:bg-gray-800">
-              <div class="flex flex-col items-center justify-center py-8 text-center">
-                <div class="flex items-center justify-center w-16 h-16 mb-4 bg-green-100 rounded-full dark:bg-green-900/20">
-                  <svg class="w-8 h-8 text-green-600 dark:text-green-400" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                </div>
-                <h3 class="mb-1 text-lg font-medium text-gray-900 dark:text-white">Ready to Identify</h3>
-                <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">Upload a plant photo to start the identification process.</p>
-                <button
-                  @click="openFileUpload"
-                  class="flex items-center px-4 py-2 text-sm font-medium text-white bg-green-600 border border-transparent rounded-md shadow-sm hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 dark:bg-green-700 dark:hover:bg-green-600"
-                >
-                  Upload Photo
-                </button>
-              </div>
-            </div>
-          </div>
+          <!-- Empty / Initial State -->
+          <Card
+            v-else-if="!processing"
+            class="overflow-hidden border-0 shadow-xl bg-white/80 dark:bg-gray-800/60 rounded-3xl backdrop-blur-md"
+          >
+            <CardContent
+              class="flex flex-col items-center justify-center py-20 text-center sm:py-32"
+            >
+              <span class="text-2xl">🔍</span>
+              <h3
+                class="text-lg font-semibold tracking-tight text-sage-900 dark:text-sage-100"
+              >
+                Ready to Identify Plants
+              </h3>
+              <p class="max-w-md mt-2 text-base text-sage-600 dark:text-sage-400">
+                Upload a clear image of a plant to get started. For best results, use a
+                well-lit photo focusing on distinguishing features like flowers or leaves.
+              </p>
+              <Button class="mt-8 shadow-lg rounded-xl" size="lg" @click="openFileUpload">
+                <Icon name="upload" class="w-4 h-4 mr-2" />
+                Upload Plant Image
+              </Button>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>
