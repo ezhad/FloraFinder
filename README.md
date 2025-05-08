@@ -113,7 +113,7 @@ FloraFinder is a Laravel-based web application that helps users identify Malaysi
 1. Clone the repository:
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/anasdaniel/FloraFinder.git
 cd FloraFinder
 ```
 
