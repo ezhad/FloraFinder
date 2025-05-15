@@ -5,11 +5,11 @@ use App\Http\Integrations\PlantNetConnector;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use App\Http\Controllers\Api\PlantProxyController;
 
 Route::middleware('auth:sanctum')->get('/user', function (Request $request) {
     return $request->user();
 });
-
 
 //test api identify
 Route::get('identify-plant', function () {
@@ -67,3 +67,16 @@ Route::get('identify-plant', function () {
         'response' => $result,
     ]);
 })->name('api-identify-plant');
+
+// AR Plant Recognition API Routes
+Route::prefix('api/ar')->group(function () {
+    Route::get('/plants', [App\Http\Controllers\ARPlantController::class, 'getAllPlants']);
+    Route::get('/plants/{id}', [App\Http\Controllers\ARPlantController::class, 'getPlant']);
+    Route::post('/identify', [App\Http\Controllers\ARPlantController::class, 'identifyPlant']);
+    Route::post('/educational-data', [App\Http\Controllers\ARPlantController::class, 'storeEducationalData']);
+    Route::post('/garden-design', [App\Http\Controllers\ARPlantController::class, 'saveGardenDesign']);
+    Route::post('/upload-marker', [App\Http\Controllers\ARPlantController::class, 'uploadMarker']);
+});
+
+Route::get('/proxy/iucn', [PlantProxyController::class, 'iucn']);
+Route::get('/proxy/trefle', [PlantProxyController::class, 'trefle']);

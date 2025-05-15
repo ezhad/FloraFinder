@@ -11,6 +11,11 @@ import { useToast } from "@/composables/useToast";
 interface FormData {
   image: File | null;
   organ: string;
+  locationName: string;
+  region: string;
+  latitude: number | null;
+  longitude: number | null;
+  includeLocation: boolean;
 }
 
 interface PlantResult {
@@ -97,6 +102,11 @@ const { toast } = useToast();
 const form = reactive<FormData>({
   image: null,
   organ: "flower",
+  locationName: "",
+  region: "Peninsular Malaysia",
+  latitude: null,
+  longitude: null,
+  includeLocation: false,
 });
 
 const imagePreview = ref<string | null>(null);
@@ -145,12 +155,52 @@ const onImageChange = (e: Event): void => {
 const resetForm = (): void => {
   form.image = null;
   imagePreview.value = null;
+  form.locationName = "";
+  form.latitude = null;
+  form.longitude = null;
+  form.includeLocation = false;
 
   // Restore results from props if available
   if (props.plantData) {
     results.value = props.plantData;
   } else {
     results.value = null;
+  }
+};
+
+// Function to use current location during upload
+const useUploadLocation = (): void => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        form.latitude = position.coords.latitude;
+        form.longitude = position.coords.longitude;
+        form.includeLocation = true;
+
+        // Show success toast
+        toast({
+          title: "Location Detected",
+          description: "Your current coordinates have been added to the upload.",
+          variant: "success",
+        });
+      },
+      () => {
+        // Show error toast
+        toast({
+          title: "Location Error",
+          description: "Unable to get your current location.",
+          variant: "destructive",
+        });
+        form.includeLocation = false;
+      }
+    );
+  } else {
+    // Show browser not supported toast
+    toast({
+      title: "Not Supported",
+      description: "Your browser doesn't support geolocation.",
+      variant: "destructive",
+    });
   }
 };
 
@@ -206,6 +256,21 @@ const identifyPlant = async (): Promise<void> => {
   const formData = new FormData();
   formData.append("image", form.image);
   formData.append("organ", form.organ);
+
+  // Location data is kept local for the prototype
+  // We don't send it to the API yet
+
+  // Show a toast indicating location data is saved locally if included
+  if (form.includeLocation && (form.locationName || form.latitude !== null)) {
+    setTimeout(() => {
+      toast({
+        title: "Location Data Saved",
+        description:
+          "Location information has been saved with this identification (prototype feature).",
+        variant: "success",
+      });
+    }, 1000);
+  }
 
   // Send request
   try {
@@ -291,6 +356,198 @@ function getConservationAdvice(scientificName: string): string {
       return "Maintain natural habitat, avoid overharvesting, and support local biodiversity. Consult local experts for more details.";
   }
 }
+
+// Malaysia plant location info with mockup coordinates
+interface LocationInfo {
+  name: string;
+  region: string;
+  latitude: number;
+  longitude: number;
+  elevation: string;
+  habitat: string;
+}
+
+// Sighting Report interface
+interface SightingReport {
+  locationName: string;
+  region: string;
+  latitude: number | null;
+  longitude: number | null;
+  date: string;
+  notes: string;
+  useCurrentLocation: boolean;
+}
+
+// Function to get mockup location for a plant in Malaysia
+function getPlantLocationInfo(scientificName: string): LocationInfo {
+  // Mockup locations for Malaysian plants
+  const locations: Record<string, LocationInfo> = {
+    "rafflesia arnoldii": {
+      name: "Gunung Gading National Park",
+      region: "Sarawak",
+      latitude: 1.6833,
+      longitude: 109.85,
+      elevation: "200-900m",
+      habitat: "Primary rainforest",
+    },
+    "nepenthes rajah": {
+      name: "Mount Kinabalu",
+      region: "Sabah",
+      latitude: 6.0753,
+      longitude: 116.5582,
+      elevation: "1500-2600m",
+      habitat: "Highland cloud forest",
+    },
+    "etlingera elatior": {
+      name: "Taman Negara",
+      region: "Pahang",
+      latitude: 4.3833,
+      longitude: 102.4,
+      elevation: "80-400m",
+      habitat: "Tropical rainforest",
+    },
+    "shorea macrophylla": {
+      name: "Lambir Hills National Park",
+      region: "Sarawak",
+      latitude: 4.2,
+      longitude: 114.0333,
+      elevation: "150-465m",
+      habitat: "Dipterocarp forest",
+    },
+  };
+
+  // Default location (Taman Negara)
+  const defaultLocation: LocationInfo = {
+    name: "Taman Negara",
+    region: "Peninsular Malaysia",
+    latitude: 4.5167,
+    longitude: 102.45,
+    elevation: "100-700m",
+    habitat: "Tropical rainforest",
+  };
+
+  // Try to match the scientific name (case insensitive)
+  const lowercaseName = scientificName.toLowerCase();
+  for (const key in locations) {
+    if (lowercaseName.includes(key)) {
+      return locations[key];
+    }
+  }
+
+  // If no specific match, return default location
+  return defaultLocation;
+}
+
+// State for the sighting report modal
+const showSightingModal = ref<boolean>(false);
+const sightingReport = reactive<SightingReport>({
+  locationName: "",
+  region: "Peninsular Malaysia",
+  latitude: null,
+  longitude: null,
+  date: new Date().toISOString().slice(0, 10),
+  notes: "",
+  useCurrentLocation: false,
+});
+
+// Malaysian regions for the dropdown
+const malaysianRegions = [
+  "Peninsular Malaysia",
+  "Sabah",
+  "Sarawak",
+  "Labuan",
+  "Johor",
+  "Kedah",
+  "Kelantan",
+  "Melaka",
+  "Negeri Sembilan",
+  "Pahang",
+  "Perak",
+  "Perlis",
+  "Pulau Pinang",
+  "Selangor",
+  "Terengganu",
+];
+
+// Function to open the sighting modal with pre-filled data if available
+const openSightingModal = () => {
+  // Pre-fill with current plant location data if available
+  if (selectedResult?.species?.scientificNameWithoutAuthor) {
+    const locationInfo = getPlantLocationInfo(
+      selectedResult.species.scientificNameWithoutAuthor
+    );
+    sightingReport.locationName = locationInfo.name;
+    sightingReport.region = locationInfo.region;
+    sightingReport.latitude = locationInfo.latitude;
+    sightingReport.longitude = locationInfo.longitude;
+  }
+
+  showSightingModal.value = true;
+};
+
+// Function to close the sighting modal
+const closeSightingModal = () => {
+  showSightingModal.value = false;
+};
+
+// Function to use current location
+const useCurrentLocation = () => {
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        sightingReport.latitude = position.coords.latitude;
+        sightingReport.longitude = position.coords.longitude;
+        sightingReport.useCurrentLocation = true;
+
+        // Show success toast
+        toast({
+          title: "Location Detected",
+          description: "Your current coordinates have been added.",
+          variant: "success",
+        });
+      },
+      () => {
+        // Show error toast
+        toast({
+          title: "Location Error",
+          description: "Unable to get your current location.",
+          variant: "destructive",
+        });
+        sightingReport.useCurrentLocation = false;
+      }
+    );
+  } else {
+    // Show browser not supported toast
+    toast({
+      title: "Not Supported",
+      description: "Your browser doesn't support geolocation.",
+      variant: "destructive",
+    });
+    sightingReport.useCurrentLocation = false;
+  }
+};
+
+// Function to submit the sighting report
+const submitSightingReport = () => {
+  // Here you would typically send the data to your backend
+  // For this mockup, we'll just show a success toast
+
+  toast({
+    title: "Sighting Reported",
+    description: "Thank you for contributing to our plant database!",
+    variant: "success",
+  });
+
+  // Close the modal
+  closeSightingModal();
+
+  // Reset the form for next use
+  sightingReport.locationName = "";
+  sightingReport.latitude = null;
+  sightingReport.longitude = null;
+  sightingReport.notes = "";
+  sightingReport.useCurrentLocation = false;
+};
 </script>
 
 <template>
@@ -464,6 +721,83 @@ function getConservationAdvice(scientificName: string): string {
                 </div>
               </div>
 
+              <!-- Location Information -->
+              <div v-if="imagePreview">
+                <div class="flex items-center justify-between mb-3">
+                  <h3
+                    class="text-sm font-semibold tracking-tight text-sage-700 dark:text-sage-200"
+                  >
+                    Add Location Information
+                  </h3>
+                  <div class="flex items-center">
+                    <input
+                      type="checkbox"
+                      id="includeLocation"
+                      v-model="form.includeLocation"
+                      class="rounded border-sage-300 text-moss-600 focus:ring-moss-500"
+                    />
+                    <label
+                      for="includeLocation"
+                      class="ml-2 text-xs text-sage-600 dark:text-sage-400"
+                    >
+                      Include Location
+                    </label>
+                  </div>
+                </div>
+                <div class="space-y-3" v-if="form.includeLocation">
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <!-- Region Dropdown -->
+                    <div>
+                      <label class="text-xs text-sage-600 dark:text-sage-400 mb-1 block">
+                        Region
+                      </label>
+                      <select
+                        v-model="form.region"
+                        class="w-full rounded-lg border-sage-300 bg-white/80 dark:bg-moss-900/40 dark:border-moss-700 text-sm focus:border-moss-500 dark:focus:border-moss-500 focus:ring-moss-500 dark:focus:ring-moss-500"
+                      >
+                        <option value="Peninsular Malaysia">Peninsular Malaysia</option>
+                        <option value="Sabah">Sabah</option>
+                        <option value="Sarawak">Sarawak</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <!-- Location Name -->
+                    <div>
+                      <label class="text-xs text-sage-600 dark:text-sage-400 mb-1 block">
+                        Location Name
+                      </label>
+                      <input
+                        type="text"
+                        v-model="form.locationName"
+                        placeholder="e.g., Forest Reserve, Park"
+                        class="w-full rounded-lg border-sage-300 bg-white/80 dark:bg-moss-900/40 dark:border-moss-700 text-sm focus:border-moss-500 dark:focus:border-moss-500 focus:ring-moss-500 dark:focus:ring-moss-500"
+                      />
+                    </div>
+                  </div>
+
+                  <!-- Use Current Location Button -->
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    class="w-full border-moss-300 dark:border-moss-700 rounded-lg hover:bg-moss-50 dark:hover:bg-moss-900/40 mt-2 flex items-center justify-center gap-2"
+                    @click="useUploadLocation"
+                  >
+                    <Icon name="map-pin" class="w-4 h-4" />
+                    <span>Use Current Location</span>
+                  </Button>
+
+                  <!-- Show coordinates if available -->
+                  <div
+                    v-if="form.latitude !== null && form.longitude !== null"
+                    class="text-xs text-sage-600 dark:text-sage-400 text-center"
+                  >
+                    Coordinates: {{ form.latitude.toFixed(6) }},
+                    {{ form.longitude.toFixed(6) }}
+                  </div>
+                </div>
+              </div>
+
               <!-- Identify Button -->
               <Button
                 class="w-full text-white transition-all duration-200 shadow-lg bg-gradient-to-r from-black to-black/80 hover:from-black/90 hover:to-black dark:text-white rounded-xl"
@@ -548,6 +882,17 @@ function getConservationAdvice(scientificName: string): string {
 
           <!-- Results Display -->
           <template v-else-if="hasResults">
+            <!-- Clear Results Button (Top) -->
+            <div class="flex justify-end mb-4">
+              <Button
+                variant="outline"
+                class="text-gray-700 border-gray-300 rounded-full hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                @click="resetForm"
+              >
+                <Icon name="refresh-cw" class="w-4 h-4 mr-2" /> Clear Results & Start Over
+              </Button>
+            </div>
+
             <!-- Primary Result -->
             <Card
               class="overflow-hidden border-0 shadow-xl rounded-3xl backdrop-blur-md bg-white/80 dark:bg-sage-900/60 ring-1 ring-sage-200 dark:ring-sage-800"
@@ -560,19 +905,29 @@ function getConservationAdvice(scientificName: string): string {
                   <h2 class="text-lg font-semibold tracking-tight">
                     Identification Result
                   </h2>
-                  <span
-                    v-if="selectedResult"
-                    class="ml-auto rounded-full px-2 py-0.5 text-xs font-medium shadow"
-                    :class="
-                      (selectedResult.score || 0) > 0.5
-                        ? 'bg-green-600 text-white'
-                        : (selectedResult.score || 0) > 0.25
-                        ? 'bg-yellow-400 text-yellow-900'
-                        : 'bg-red-600 text-white'
-                    "
-                  >
-                    {{ Math.round((selectedResult?.score || 0) * 100) }}% confidence
-                  </span>
+                  <div class="flex items-center ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      class="mr-3 text-gray-700 border-gray-300 rounded-full hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
+                      @click="resetForm"
+                    >
+                      <Icon name="refresh-cw" class="w-3 h-3 mr-1" /> Clear Results
+                    </Button>
+                    <span
+                      v-if="selectedResult"
+                      class="rounded-full px-2 py-0.5 text-xs font-medium shadow"
+                      :class="
+                        (selectedResult?.score || 0) > 0.5
+                          ? 'bg-green-600 text-white'
+                          : (selectedResult?.score || 0) > 0.25
+                          ? 'bg-yellow-400 text-yellow-900'
+                          : 'bg-red-600 text-white'
+                      "
+                    >
+                      {{ Math.round((selectedResult?.score || 0) * 100) }}% confidence
+                    </span>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent class="px-8 py-8">
@@ -725,6 +1080,131 @@ function getConservationAdvice(scientificName: string): string {
                           <Icon name="external-link" class="w-3 h-3 mr-1" /> Kew Science
                         </a>
                       </div>
+
+                      <!-- Plant Location Section -->
+                      <div
+                        class="p-6 mt-4 shadow rounded-2xl bg-gradient-to-br from-blue-100/80 to-blue-200/60 dark:from-blue-900/30 dark:to-blue-800/30"
+                      >
+                        <h4
+                          class="flex items-center mb-2 font-semibold tracking-tight text-blue-700 dark:text-blue-300"
+                        >
+                          <Icon name="map-pin" class="w-4 h-4 mr-2" />
+                          Known Locations in Malaysia
+                        </h4>
+
+                        <!-- Map Placeholder -->
+                        <div
+                          class="relative mb-4 overflow-hidden rounded-lg shadow-sm bg-sage-50 dark:bg-sage-800 aspect-video"
+                        >
+                          <div
+                            class="absolute inset-0 bg-[url('https://images.pexels.com/photos/2923591/pexels-photo-2923591.jpeg?auto=compress&cs=tinysrgb&w=1260')] bg-cover bg-center opacity-40"
+                          ></div>
+                          <div
+                            class="absolute inset-0 flex flex-col items-center justify-center"
+                          >
+                            <div
+                              class="p-2 bg-white/90 dark:bg-black/60 rounded-lg shadow-lg"
+                            >
+                              <div class="flex items-center gap-2">
+                                <Icon name="map-pin" class="w-5 h-5 text-red-500" />
+                                <span
+                                  class="text-sm font-medium text-sage-900 dark:text-white"
+                                >
+                                  {{
+                                    getPlantLocationInfo(
+                                      selectedResult?.species
+                                        .scientificNameWithoutAuthor || ""
+                                    ).name
+                                  }}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                          <div
+                            class="absolute bottom-2 right-2 p-1 text-xs bg-white/80 dark:bg-black/60 rounded"
+                          >
+                            <Icon
+                              name="zoom-in"
+                              class="w-3 h-3 text-gray-700 dark:text-gray-300"
+                            />
+                          </div>
+                        </div>
+
+                        <!-- Location Details -->
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                          <div>
+                            <span
+                              class="text-xs font-medium text-blue-600 dark:text-blue-400"
+                              >Region:</span
+                            >
+                            <p class="text-sage-800 dark:text-sage-200">
+                              {{
+                                getPlantLocationInfo(
+                                  selectedResult?.species.scientificNameWithoutAuthor ||
+                                    ""
+                                ).region
+                              }}
+                            </p>
+                          </div>
+                          <div>
+                            <span
+                              class="text-xs font-medium text-blue-600 dark:text-blue-400"
+                              >Elevation:</span
+                            >
+                            <p class="text-sage-800 dark:text-sage-200">
+                              {{
+                                getPlantLocationInfo(
+                                  selectedResult?.species.scientificNameWithoutAuthor ||
+                                    ""
+                                ).elevation
+                              }}
+                            </p>
+                          </div>
+                          <div>
+                            <span
+                              class="text-xs font-medium text-blue-600 dark:text-blue-400"
+                              >Coordinates:</span
+                            >
+                            <p class="text-sage-800 dark:text-sage-200">
+                              {{
+                                getPlantLocationInfo(
+                                  selectedResult?.species.scientificNameWithoutAuthor ||
+                                    ""
+                                ).latitude.toFixed(4)
+                              }},
+                              {{
+                                getPlantLocationInfo(
+                                  selectedResult?.species.scientificNameWithoutAuthor ||
+                                    ""
+                                ).longitude.toFixed(4)
+                              }}
+                            </p>
+                          </div>
+                          <div>
+                            <span
+                              class="text-xs font-medium text-blue-600 dark:text-blue-400"
+                              >Habitat:</span
+                            >
+                            <p class="text-sage-800 dark:text-sage-200">
+                              {{
+                                getPlantLocationInfo(
+                                  selectedResult?.species.scientificNameWithoutAuthor ||
+                                    ""
+                                ).habitat
+                              }}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div class="flex justify-end mt-3">
+                          <button
+                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 transition-colors rounded-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50"
+                          >
+                            <Icon name="map" class="w-3 h-3" /> View Full Map
+                          </button>
+                        </div>
+                      </div>
+
                       <!-- Conservation Guide Section -->
                       <div
                         class="p-6 mt-4 shadow rounded-2xl bg-gradient-to-br from-green-100/80 to-green-200/60 dark:from-green-900/30 dark:to-green-800/30"
@@ -756,7 +1236,8 @@ function getConservationAdvice(scientificName: string): string {
                         </Button>
                         <Button
                           variant="outline"
-                          class="flex items-center gap-1 transition-all rounded-full shadow-sm hover:bg-green-50 dark:hover:bg-green-900/30"
+                          class="flex items-center gap-1 transition-all rounded-full shadow-sm hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                          @click="openSightingModal"
                         >
                           <Icon name="map-pin" class="w-4 h-4" /> Report Sighting
                         </Button>
@@ -767,37 +1248,96 @@ function getConservationAdvice(scientificName: string): string {
                           <Icon name="info" class="w-4 h-4" /> More Info
                         </Button>
                       </div>
-                      <!-- User Feedback Section -->
+                      <!-- Similar Plants Section -->
                       <div
-                        class="p-6 mt-6 rounded-2xl bg-sage-50/80 dark:bg-sage-800/40 shadow"
+                        class="p-6 mt-6 rounded-2xl bg-gradient-to-br from-amber-100/80 to-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/30 shadow"
                       >
-                        <div class="flex items-center gap-3 mb-2">
-                          <span
-                            class="font-medium text-sage-700 dark:text-sage-200 tracking-tight"
-                            >Was this identification accurate?</span
+                        <div class="flex items-center justify-between mb-4">
+                          <h4
+                            class="font-semibold tracking-tight text-amber-700 dark:text-amber-300 flex items-center"
                           >
+                            <Icon name="flower" class="w-4 h-4 mr-2" />
+                            Similar Plants & Species
+                          </h4>
                           <button
-                            class="p-2 transition rounded-full hover:bg-green-100 dark:hover:bg-green-900/30"
+                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 transition-colors rounded-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-800/50"
                           >
-                            <Icon name="thumbs-up" class="w-5 h-5 text-green-600" />
-                          </button>
-                          <button
-                            class="p-2 transition rounded-full hover:bg-red-100 dark:hover:bg-red-900/30"
-                          >
-                            <Icon name="thumbs-down" class="w-5 h-5 text-red-500" />
+                            <Icon name="plus" class="w-3 h-3" /> View More
                           </button>
                         </div>
-                        <textarea
-                          rows="2"
-                          placeholder="Add a comment or correction..."
-                          class="w-full px-3 py-2 text-sm transition border rounded-lg text-sage-800 bg-white/80 border-sage-200 dark:border-sage-700 dark:bg-sage-900/40 dark:text-sage-100 focus:ring-2 focus:ring-green-400"
-                        ></textarea>
-                        <div class="flex justify-end mt-2">
-                          <Button
-                            size="sm"
-                            class="text-white bg-black rounded-full shadow hover:bg-black/80"
-                            >Submit Feedback</Button
+
+                        <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                          <div
+                            class="overflow-hidden transition-all rounded-lg shadow-sm bg-white/90 dark:bg-sage-900/60 hover:shadow-md"
                           >
+                            <div class="relative h-16 overflow-hidden">
+                              <img
+                                src="https://images.pexels.com/photos/2183727/pexels-photo-2183727.jpeg?auto=compress&cs=tinysrgb&w=1260"
+                                alt="Similar plant 1"
+                                class="object-cover w-full h-full"
+                              />
+                            </div>
+                            <div class="p-2">
+                              <p
+                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                              >
+                                Common Jasmine
+                              </p>
+                              <p
+                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                              >
+                                Jasminum officinale
+                              </p>
+                            </div>
+                          </div>
+
+                          <div
+                            class="overflow-hidden transition-all rounded-lg shadow-sm bg-white/90 dark:bg-sage-900/60 hover:shadow-md"
+                          >
+                            <div class="relative h-16 overflow-hidden">
+                              <img
+                                src="https://images.pexels.com/photos/1408221/pexels-photo-1408221.jpeg?auto=compress&cs=tinysrgb&w=1260"
+                                alt="Similar plant 2"
+                                class="object-cover w-full h-full"
+                              />
+                            </div>
+                            <div class="p-2">
+                              <p
+                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                              >
+                                Malayan Orchid
+                              </p>
+                              <p
+                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                              >
+                                Phalaenopsis bellina
+                              </p>
+                            </div>
+                          </div>
+
+                          <div
+                            class="overflow-hidden transition-all rounded-lg shadow-sm bg-white/90 dark:bg-sage-900/60 hover:shadow-md"
+                          >
+                            <div class="relative h-16 overflow-hidden">
+                              <img
+                                src="https://images.pexels.com/photos/2315309/pexels-photo-2315309.jpeg?auto=compress&cs=tinysrgb&w=1260"
+                                alt="Similar plant 3"
+                                class="object-cover w-full h-full"
+                              />
+                            </div>
+                            <div class="p-2">
+                              <p
+                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                              >
+                                Borneo Fern
+                              </p>
+                              <p
+                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                              >
+                                Dipteris conjugata
+                              </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -898,6 +1438,201 @@ function getConservationAdvice(scientificName: string): string {
             </CardContent>
           </Card>
         </div>
+      </div>
+    </div>
+
+    <!-- Sighting Report Modal -->
+    <div
+      v-if="showSightingModal"
+      class="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/50 backdrop-blur-sm"
+    >
+      <div
+        class="relative w-full max-w-lg p-6 mx-4 overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl"
+      >
+        <!-- Modal Header -->
+        <div class="flex items-start justify-between mb-6">
+          <div>
+            <h3 class="text-xl font-bold text-sage-900 dark:text-white">
+              Report Plant Sighting
+            </h3>
+            <p class="mt-1 text-sm text-sage-500 dark:text-sage-400">
+              Share where you found this plant in Malaysia
+            </p>
+          </div>
+          <button
+            @click="closeSightingModal"
+            class="p-2 -mr-2 text-sage-500 rounded-full hover:bg-sage-100 dark:hover:bg-sage-800 dark:text-sage-400"
+          >
+            <Icon name="x" class="w-5 h-5" />
+          </button>
+        </div>
+
+        <!-- Plant Info -->
+        <div class="flex items-center p-3 mb-6 bg-sage-50 dark:bg-sage-900/40 rounded-xl">
+          <div class="flex-shrink-0 w-12 h-12 overflow-hidden rounded-lg">
+            <img
+              v-if="selectedResult && selectedResult.images?.length"
+              :src="selectedResult.images[0].url.s"
+              :alt="selectedResult?.species.commonNames?.[0]"
+              class="object-cover w-full h-full"
+            />
+            <div
+              v-else
+              class="flex items-center justify-center w-full h-full bg-sage-200 dark:bg-sage-800"
+            >
+              <Icon name="leaf" class="w-6 h-6 text-sage-500" />
+            </div>
+          </div>
+          <div class="ml-3">
+            <p class="font-medium text-sage-900 dark:text-white">
+              {{ selectedResult?.species.commonNames?.[0] || "Unknown Plant" }}
+            </p>
+            <p class="text-xs italic text-sage-500 dark:text-sage-400">
+              {{ selectedResult?.species.scientificName }}
+            </p>
+          </div>
+        </div>
+
+        <!-- Form -->
+        <div class="space-y-5">
+          <!-- Location Name -->
+          <div>
+            <label
+              for="locationName"
+              class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+            >
+              Location Name
+            </label>
+            <input
+              id="locationName"
+              v-model="sightingReport.locationName"
+              type="text"
+              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              placeholder="e.g., Taman Negara, Mount Kinabalu"
+            />
+          </div>
+
+          <!-- Region -->
+          <div>
+            <label
+              for="region"
+              class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+            >
+              Region
+            </label>
+            <select
+              id="region"
+              v-model="sightingReport.region"
+              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+            >
+              <option v-for="region in malaysianRegions" :key="region" :value="region">
+                {{ region }}
+              </option>
+            </select>
+          </div>
+
+          <!-- Coordinates -->
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <label
+                for="latitude"
+                class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+              >
+                Latitude
+              </label>
+              <input
+                id="latitude"
+                v-model="sightingReport.latitude"
+                type="number"
+                step="0.0001"
+                class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                placeholder="e.g., 4.5167"
+              />
+            </div>
+            <div>
+              <label
+                for="longitude"
+                class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+              >
+                Longitude
+              </label>
+              <input
+                id="longitude"
+                v-model="sightingReport.longitude"
+                type="number"
+                step="0.0001"
+                class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                placeholder="e.g., 102.4500"
+              />
+            </div>
+          </div>
+
+          <!-- Use current location button -->
+          <div class="flex justify-end">
+            <button
+              @click="useCurrentLocation"
+              class="flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 transition-colors rounded-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50"
+            >
+              <Icon name="map-pin" class="w-3 h-3" /> Use My Current Location
+            </button>
+          </div>
+
+          <!-- Date of Sighting -->
+          <div>
+            <label
+              for="sightingDate"
+              class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+            >
+              Date of Sighting
+            </label>
+            <input
+              id="sightingDate"
+              v-model="sightingReport.date"
+              type="date"
+              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+            />
+          </div>
+
+          <!-- Notes -->
+          <div>
+            <label
+              for="notes"
+              class="block mb-1 text-sm font-medium text-sage-700 dark:text-sage-300"
+            >
+              Notes (Optional)
+            </label>
+            <textarea
+              id="notes"
+              v-model="sightingReport.notes"
+              rows="3"
+              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              placeholder="Add any details about the plant or location..."
+            ></textarea>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex items-center justify-end gap-3 mt-8">
+          <Button
+            variant="outline"
+            class="px-6 py-2 text-sage-700 border-sage-300 dark:text-sage-300 dark:border-sage-700"
+            @click="closeSightingModal"
+          >
+            Cancel
+          </Button>
+          <Button
+            class="px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600"
+            @click="submitSightingReport"
+          >
+            Submit Report
+          </Button>
+        </div>
+
+        <!-- Privacy Notice -->
+        <p class="mt-4 text-xs text-center text-sage-500 dark:text-sage-400">
+          <Icon name="shield" class="inline-block w-3 h-3 mr-1" />
+          Your sighting data helps track plant distribution and conservation efforts.
+        </p>
       </div>
     </div>
   </AppLayout>
