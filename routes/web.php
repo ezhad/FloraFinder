@@ -10,6 +10,10 @@ use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use GuzzleHttp\Client;
 
+use App\Http\Controllers\ForumThreadController;
+use App\Http\Controllers\ForumPostController;
+use App\Http\Controllers\ForumTagController;
+
 
 Route::get('/', function () {
 
@@ -88,6 +92,17 @@ Route::middleware(['auth', 'verified'])->group(function () {
         '/plant-identifier/identify',
         [PlantIdentifierController::class, 'identify']
     )->name('plant-identifier.identify');
+});
+
+Route::middleware(['auth'])->group(function () {
+    // Forum Thread Routes
+    Route::resource('/forum/threads', ForumThreadController::class);
+    
+    // Forum Post Routes
+    Route::post('forum/threads/{thread}/posts', [ForumPostController::class, 'store'])->name('forum.posts.store');
+
+    // Forum Tag Routes
+    Route::get('forum/tags', [ForumTagController::class, 'index'])->name('forum.tags.index');
 });
 
 require __DIR__ . '/settings.php';

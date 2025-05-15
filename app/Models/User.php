@@ -21,6 +21,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'role',
     ];
 
     /**
@@ -44,5 +45,20 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    public function sightings()
+    {
+        return $this->hasMany(Sighting::class, 'user_id');
+    
+    }
+
+    public function forum_posts()
+    {
+        return $this->hasMany(Forum_Post::class, 'forum_post_id');
+    }
+    public function forum_threads()
+    {
+        return $this->hasMany(Forum_Thread::class, 'forum_thread_id');
     }
 }
