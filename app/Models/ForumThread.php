@@ -25,7 +25,7 @@ class Forum_Thread extends Model
         return $this->hasMany(Forum_Post::class, 'forum_post_id');
     }
 
-    public function forum_tag()
+    public function forum_tags()
     {
         return $this->belongsToMany(Forum_Tag::class, 'forum_tag_id');
     }

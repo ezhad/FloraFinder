@@ -16,7 +16,7 @@ return new class extends Migration
             $table->string('common_name',100);
             $table->string('scientific_name',150);
             $table->string('family',100);
-            $table->text('habitat');
+            $table->string('habitat',100);
             $table->string('lifespan',50);
             $table->text('care_tips');
             $table->timestamps();

@@ -14,7 +14,7 @@ class Forum_Tag extends Model
         'name',
     ];
 
-    public function forum_thread()
+    public function forum_threads()
     {
         return $this->belongsToMany(Forum_Thread::class, 'forum_thread_id');
     }
