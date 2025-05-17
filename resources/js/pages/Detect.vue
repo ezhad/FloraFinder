@@ -169,29 +169,65 @@ const resetForm = (): void => {
 };
 
 // Function to use current location during upload
+const gettingLocation = ref<boolean>(false);
+
 const useUploadLocation = (): void => {
   if (navigator.geolocation) {
+    gettingLocation.value = true;
+    
+    // Update button UI to show loading state
+    toast({
+      title: "Getting Your Location",
+      description: "Please wait while we access your location...",
+      variant: "default",
+    });
+    
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        form.latitude = position.coords.latitude;
-        form.longitude = position.coords.longitude;
+        // Format coordinates to 6 decimal places for precision
+        form.latitude = parseFloat(position.coords.latitude.toFixed(6));
+        form.longitude = parseFloat(position.coords.longitude.toFixed(6));
         form.includeLocation = true;
+        
+        // Try to get location name based on coordinates using reverse geocoding
+        reverseGeocode(position.coords.latitude, position.coords.longitude);
 
         // Show success toast
         toast({
           title: "Location Detected",
-          description: "Your current coordinates have been added to the upload.",
+          description: `Coordinates: ${form.latitude}, ${form.longitude}`,
           variant: "success",
         });
+        gettingLocation.value = false;
       },
-      () => {
-        // Show error toast
+      (error) => {
+        // Show error toast with more specific message
+        let errorMessage = "Unable to get your current location.";
+        
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            errorMessage = "Location permission denied. Please enable location services in your browser settings.";
+            break;
+          case error.POSITION_UNAVAILABLE:
+            errorMessage = "Location information is unavailable. Please try again.";
+            break;
+          case error.TIMEOUT:
+            errorMessage = "Location request timed out. Please try again.";
+            break;
+        }
+        
         toast({
           title: "Location Error",
-          description: "Unable to get your current location.",
+          description: errorMessage,
           variant: "destructive",
         });
         form.includeLocation = false;
+        gettingLocation.value = false;
+      },
+      { 
+        enableHighAccuracy: true, 
+        timeout: 10000,
+        maximumAge: 0 
       }
     );
   } else {
@@ -201,6 +237,61 @@ const useUploadLocation = (): void => {
       description: "Your browser doesn't support geolocation.",
       variant: "destructive",
     });
+  }
+};
+
+// Attempt to get location name based on coordinates using reverse geocoding
+const reverseGeocode = async (latitude: number, longitude: number): Promise<void> => {
+  try {
+    // This is a simple example using Nominatim OpenStreetMap service
+    // In a production app, you might want to use a paid service like Google Maps API
+    const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
+    
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.display_name) {
+        // Extract a simplified location name
+        let locationName = data.name || "";
+        
+        // Set region based on available admin levels
+        let region = "";
+        if (data.address) {
+          region = data.address.state || data.address.province || data.address.city || "Peninsular Malaysia";
+          
+          // If we don't have a location name but have address components, create a name
+          if (!locationName) {
+            locationName = data.address.city || data.address.town || data.address.village || data.address.suburb || "";
+          }
+        }
+        
+        // Set the form values if we found something useful
+        if (locationName) {
+          form.locationName = locationName;
+        }
+        
+        // Try to find the best match in malaysianRegions
+        if (region && Array.isArray(malaysianRegions)) {
+          for (const r of malaysianRegions) {
+            if (typeof r === 'string' && region.toLowerCase().includes(r.toLowerCase())) {
+              form.region = r;
+              break;
+            }
+          }
+        }
+        
+        // Show success toast for location name if found
+        if (locationName) {
+          toast({
+            title: "Location Name Found",
+            description: `Location identified as: ${locationName}`,
+            variant: "success",
+          });
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error during reverse geocoding:", error);
+    // We don't show an error toast here as getting coordinates is already successful
   }
 };
 
@@ -675,7 +766,7 @@ const submitSightingReport = () => {
                     @keydown.enter.space="!processing && (form.organ = organ.value)"
                   >
                     <div
-                      class="flex flex-col items-center justify-center p-3 transition-all rounded-xl border shadow-sm duration-200"
+                      class="flex flex-col items-center justify-center p-3 transition-all duration-200 border shadow-sm rounded-xl"
                       :class="
                         form.organ === organ.value
                           ? 'border-moss-600 bg-moss-50/90 dark:border-moss-400 dark:bg-moss-900/60 shadow-lg ring-2 ring-moss-400 scale-105'
@@ -722,79 +813,138 @@ const submitSightingReport = () => {
               </div>
 
               <!-- Location Information -->
-              <div v-if="imagePreview">
+              <div v-if="imagePreview" class="space-y-4">
                 <div class="flex items-center justify-between mb-3">
                   <h3
                     class="text-sm font-semibold tracking-tight text-sage-700 dark:text-sage-200"
                   >
-                    Add Location Information
+                    Sighting Location (optional)
                   </h3>
-                  <div class="flex items-center">
-                    <input
-                      type="checkbox"
-                      id="includeLocation"
-                      v-model="form.includeLocation"
-                      class="rounded border-sage-300 text-moss-600 focus:ring-moss-500"
-                    />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    class="px-2 py-1 text-xs text-moss-600 dark:text-moss-300"
+                    @click="useUploadLocation"
+                    :disabled="gettingLocation"
+                  >
+                    <template v-if="gettingLocation">
+                      <Icon name="loader-2" class="w-4 h-4 mr-1 animate-spin" />
+                      Getting Location...
+                    </template>
+                    <template v-else>
+                      <Icon name="map-pin" class="w-4 h-4 mr-1" /> Use Current Location
+                    </template>
+                  </Button>
+                </div>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
                     <label
-                      for="includeLocation"
-                      class="ml-2 text-xs text-sage-600 dark:text-sage-400"
+                      class="block mb-1 text-xs font-medium text-moss-700 dark:text-moss-200"
+                      >Location Name</label
                     >
-                      Include Location
-                    </label>
+                    <input
+                      v-model="form.locationName"
+                      type="text"
+                      placeholder="e.g. Taman Negara, Gunung Ledang"
+                      class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-moss-400 dark:bg-moss-900/40 dark:text-white border-moss-300 dark:border-moss-700"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      class="block mb-1 text-xs font-medium text-moss-700 dark:text-moss-200"
+                      >Region</label
+                    >
+                    <select
+                      v-model="form.region"
+                      class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-moss-400 dark:bg-moss-900/40 dark:text-white border-moss-300 dark:border-moss-700"
+                    >
+                      <option
+                        v-for="region in malaysianRegions"
+                        :key="region"
+                        :value="region"
+                      >
+                        {{ region }}
+                      </option>
+                    </select>
                   </div>
                 </div>
-                <div class="space-y-3" v-if="form.includeLocation">
-                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    <!-- Region Dropdown -->
-                    <div>
-                      <label class="text-xs text-sage-600 dark:text-sage-400 mb-1 block">
-                        Region
-                      </label>
-                      <select
-                        v-model="form.region"
-                        class="w-full rounded-lg border-sage-300 bg-white/80 dark:bg-moss-900/40 dark:border-moss-700 text-sm focus:border-moss-500 dark:focus:border-moss-500 focus:ring-moss-500 dark:focus:ring-moss-500"
-                      >
-                        <option value="Peninsular Malaysia">Peninsular Malaysia</option>
-                        <option value="Sabah">Sabah</option>
-                        <option value="Sarawak">Sarawak</option>
-                        <option value="Other">Other</option>
-                      </select>
-                    </div>
-
-                    <!-- Location Name -->
-                    <div>
-                      <label class="text-xs text-sage-600 dark:text-sage-400 mb-1 block">
-                        Location Name
-                      </label>
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div>
+                    <label
+                      class="block mb-1 text-xs font-medium text-moss-700 dark:text-moss-200"
+                      >Latitude</label
+                    >
+                    <div class="relative">
                       <input
-                        type="text"
-                        v-model="form.locationName"
-                        placeholder="e.g., Forest Reserve, Park"
-                        class="w-full rounded-lg border-sage-300 bg-white/80 dark:bg-moss-900/40 dark:border-moss-700 text-sm focus:border-moss-500 dark:focus:border-moss-500 focus:ring-moss-500 dark:focus:ring-moss-500"
+                        v-model.number="form.latitude"
+                        type="number"
+                        step="0.000001"
+                        placeholder="e.g. 4.2105"
+                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-moss-400 dark:bg-moss-900/40 dark:text-white border-moss-300 dark:border-moss-700"
                       />
+                      <div 
+                        v-if="gettingLocation" 
+                        class="absolute inset-y-0 right-0 flex items-center pr-3"
+                      >
+                        <Icon name="loader-2" class="w-4 h-4 text-moss-400 animate-spin" />
+                      </div>
                     </div>
                   </div>
+                  <div>
+                    <label
+                      class="block mb-1 text-xs font-medium text-moss-700 dark:text-moss-200"
+                      >Longitude</label
+                    >
+                    <div class="relative">
+                      <input
+                        v-model.number="form.longitude"
+                        type="number"
+                        step="0.000001"
+                        placeholder="e.g. 101.9758"
+                        class="w-full px-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-moss-400 dark:bg-moss-900/40 dark:text-white border-moss-300 dark:border-moss-700"
+                      />
+                      <div 
+                        v-if="gettingLocation" 
+                        class="absolute inset-y-0 right-0 flex items-center pr-3"
+                      >
+                        <Icon name="loader-2" class="w-4 h-4 text-moss-400 animate-spin" />
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-                  <!-- Use Current Location Button -->
+                <!-- Prominent Get Location Button -->
+                <div class="flex justify-center mt-3">
                   <Button
                     variant="outline"
                     size="sm"
-                    class="w-full border-moss-300 dark:border-moss-700 rounded-lg hover:bg-moss-50 dark:hover:bg-moss-900/40 mt-2 flex items-center justify-center gap-2"
+                    class="w-full px-4 py-2 bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100 hover:border-blue-300 dark:bg-blue-900/20 dark:text-blue-300 dark:border-blue-800 dark:hover:bg-blue-900/30 transition-colors shadow-sm"
                     @click="useUploadLocation"
+                    :disabled="gettingLocation"
                   >
-                    <Icon name="map-pin" class="w-4 h-4" />
-                    <span>Use Current Location</span>
+                    <template v-if="gettingLocation">
+                      <Icon name="loader-2" class="w-4 h-4 mr-2 animate-spin" />
+                      Getting Your Current Location...
+                    </template>
+                    <template v-else>
+                      <Icon name="navigation" class="w-4 h-4 mr-2" />
+                      Use My Current Location
+                    </template>
                   </Button>
-
-                  <!-- Show coordinates if available -->
-                  <div
-                    v-if="form.latitude !== null && form.longitude !== null"
-                    class="text-xs text-sage-600 dark:text-sage-400 text-center"
+                </div>
+                
+                <div class="flex items-center mt-3">
+                  <input
+                    id="includeLocation"
+                    type="checkbox"
+                    v-model="form.includeLocation"
+                    class="w-4 h-4 rounded text-moss-600 border-moss-300 focus:ring-moss-500 dark:bg-moss-900 dark:border-moss-700"
+                  />
+                  <label
+                    for="includeLocation"
+                    class="ml-2 text-xs text-moss-700 dark:text-moss-200"
+                    >Include location with identification</label
                   >
-                    Coordinates: {{ form.latitude.toFixed(6) }},
-                    {{ form.longitude.toFixed(6) }}
-                  </div>
                 </div>
               </div>
 
@@ -822,6 +972,20 @@ const submitSightingReport = () => {
 
         <!-- Right Column: Results -->
         <div class="space-y-6 md:col-span-7 lg:col-span-8">
+          <!-- Clear Results Button -->
+          <div v-if="results && (results.success || !results.success)" class="flex flex-col">
+            <div class="flex justify-end mb-2">
+              <Button
+                variant="outline"
+                class="px-4 py-2 text-gray-700 bg-white border-gray-300 rounded-full shadow-sm hover:bg-red-50 hover:text-red-600 hover:border-red-300 dark:bg-gray-800 dark:text-gray-200 dark:border-gray-600 dark:hover:bg-red-900/20 dark:hover:text-red-400 dark:hover:border-red-700 transition-colors"
+                @click="resetForm"
+              >
+                <Icon name="refresh-cw" class="w-4 h-4 mr-2" /> Clear Results & Start Over
+              </Button>
+            </div>
+            <div class="w-full h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent dark:via-gray-700 mb-4"></div>
+          </div>
+
           <!-- Loading State -->
           <Card
             v-if="processing"
@@ -882,17 +1046,6 @@ const submitSightingReport = () => {
 
           <!-- Results Display -->
           <template v-else-if="hasResults">
-            <!-- Clear Results Button (Top) -->
-            <div class="flex justify-end mb-4">
-              <Button
-                variant="outline"
-                class="text-gray-700 border-gray-300 rounded-full hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
-                @click="resetForm"
-              >
-                <Icon name="refresh-cw" class="w-4 h-4 mr-2" /> Clear Results & Start Over
-              </Button>
-            </div>
-
             <!-- Primary Result -->
             <Card
               class="overflow-hidden border-0 shadow-xl rounded-3xl backdrop-blur-md bg-white/80 dark:bg-sage-900/60 ring-1 ring-sage-200 dark:ring-sage-800"
@@ -906,14 +1059,6 @@ const submitSightingReport = () => {
                     Identification Result
                   </h2>
                   <div class="flex items-center ml-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      class="mr-3 text-gray-700 border-gray-300 rounded-full hover:bg-gray-100 dark:text-gray-200 dark:border-gray-700 dark:hover:bg-gray-800"
-                      @click="resetForm"
-                    >
-                      <Icon name="refresh-cw" class="w-3 h-3 mr-1" /> Clear Results
-                    </Button>
                     <span
                       v-if="selectedResult"
                       class="rounded-full px-2 py-0.5 text-xs font-medium shadow"
@@ -1103,7 +1248,7 @@ const submitSightingReport = () => {
                             class="absolute inset-0 flex flex-col items-center justify-center"
                           >
                             <div
-                              class="p-2 bg-white/90 dark:bg-black/60 rounded-lg shadow-lg"
+                              class="p-2 rounded-lg shadow-lg bg-white/90 dark:bg-black/60"
                             >
                               <div class="flex items-center gap-2">
                                 <Icon name="map-pin" class="w-5 h-5 text-red-500" />
@@ -1121,7 +1266,7 @@ const submitSightingReport = () => {
                             </div>
                           </div>
                           <div
-                            class="absolute bottom-2 right-2 p-1 text-xs bg-white/80 dark:bg-black/60 rounded"
+                            class="absolute p-1 text-xs rounded bottom-2 right-2 bg-white/80 dark:bg-black/60"
                           >
                             <Icon
                               name="zoom-in"
@@ -1131,7 +1276,7 @@ const submitSightingReport = () => {
                         </div>
 
                         <!-- Location Details -->
-                        <div class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                        <div class="grid grid-cols-2 text-sm gap-x-4 gap-y-2">
                           <div>
                             <span
                               class="text-xs font-medium text-blue-600 dark:text-blue-400"
@@ -1198,7 +1343,7 @@ const submitSightingReport = () => {
 
                         <div class="flex justify-end mt-3">
                           <button
-                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 transition-colors rounded-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/50 dark:text-blue-300 dark:hover:bg-blue-800/50"
+                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-700 transition-colors rounded-full bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/50 dark:hover:bg-blue-800/50"
                           >
                             <Icon name="map" class="w-3 h-3" /> View Full Map
                           </button>
@@ -1250,17 +1395,17 @@ const submitSightingReport = () => {
                       </div>
                       <!-- Similar Plants Section -->
                       <div
-                        class="p-6 mt-6 rounded-2xl bg-gradient-to-br from-amber-100/80 to-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/30 shadow"
+                        class="p-6 mt-6 shadow rounded-2xl bg-gradient-to-br from-amber-100/80 to-amber-200/60 dark:from-amber-900/30 dark:to-amber-800/30"
                       >
                         <div class="flex items-center justify-between mb-4">
                           <h4
-                            class="font-semibold tracking-tight text-amber-700 dark:text-amber-300 flex items-center"
+                            class="flex items-center font-semibold tracking-tight text-amber-700 dark:text-amber-300"
                           >
                             <Icon name="flower" class="w-4 h-4 mr-2" />
                             Similar Plants & Species
                           </h4>
                           <button
-                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium text-amber-700 transition-colors rounded-full bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/50 dark:text-amber-300 dark:hover:bg-amber-800/50"
+                            class="flex items-center gap-1 px-2 py-1 text-xs font-medium transition-colors rounded-full text-amber-700 bg-amber-50 hover:bg-amber-100 dark:bg-amber-900/50 dark:hover:bg-amber-800/50"
                           >
                             <Icon name="plus" class="w-3 h-3" /> View More
                           </button>
@@ -1279,12 +1424,12 @@ const submitSightingReport = () => {
                             </div>
                             <div class="p-2">
                               <p
-                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                                class="text-xs font-medium truncate text-sage-900 dark:text-white"
                               >
                                 Common Jasmine
                               </p>
                               <p
-                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                                class="text-xs italic truncate text-sage-500 dark:text-sage-400"
                               >
                                 Jasminum officinale
                               </p>
@@ -1303,12 +1448,12 @@ const submitSightingReport = () => {
                             </div>
                             <div class="p-2">
                               <p
-                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                                class="text-xs font-medium truncate text-sage-900 dark:text-white"
                               >
                                 Malayan Orchid
                               </p>
                               <p
-                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                                class="text-xs italic truncate text-sage-500 dark:text-sage-400"
                               >
                                 Phalaenopsis bellina
                               </p>
@@ -1327,12 +1472,12 @@ const submitSightingReport = () => {
                             </div>
                             <div class="p-2">
                               <p
-                                class="text-xs font-medium text-sage-900 dark:text-white truncate"
+                                class="text-xs font-medium truncate text-sage-900 dark:text-white"
                               >
                                 Borneo Fern
                               </p>
                               <p
-                                class="text-xs italic text-sage-500 dark:text-sage-400 truncate"
+                                class="text-xs italic truncate text-sage-500 dark:text-sage-400"
                               >
                                 Dipteris conjugata
                               </p>
@@ -1447,7 +1592,7 @@ const submitSightingReport = () => {
       class="fixed inset-0 z-50 flex items-center justify-center overflow-auto bg-black/50 backdrop-blur-sm"
     >
       <div
-        class="relative w-full max-w-lg p-6 mx-4 overflow-hidden rounded-3xl bg-white dark:bg-gray-900 shadow-2xl"
+        class="relative w-full max-w-lg p-6 mx-4 overflow-hidden bg-white shadow-2xl rounded-3xl dark:bg-gray-900"
       >
         <!-- Modal Header -->
         <div class="flex items-start justify-between mb-6">
@@ -1461,7 +1606,7 @@ const submitSightingReport = () => {
           </div>
           <button
             @click="closeSightingModal"
-            class="p-2 -mr-2 text-sage-500 rounded-full hover:bg-sage-100 dark:hover:bg-sage-800 dark:text-sage-400"
+            class="p-2 -mr-2 rounded-full text-sage-500 hover:bg-sage-100 dark:hover:bg-sage-800 dark:text-sage-400"
           >
             <Icon name="x" class="w-5 h-5" />
           </button>
@@ -1507,7 +1652,7 @@ const submitSightingReport = () => {
               id="locationName"
               v-model="sightingReport.locationName"
               type="text"
-              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
               placeholder="e.g., Taman Negara, Mount Kinabalu"
             />
           </div>
@@ -1523,7 +1668,7 @@ const submitSightingReport = () => {
             <select
               id="region"
               v-model="sightingReport.region"
-              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
             >
               <option v-for="region in malaysianRegions" :key="region" :value="region">
                 {{ region }}
@@ -1545,7 +1690,7 @@ const submitSightingReport = () => {
                 v-model="sightingReport.latitude"
                 type="number"
                 step="0.0001"
-                class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
                 placeholder="e.g., 4.5167"
               />
             </div>
@@ -1561,7 +1706,7 @@ const submitSightingReport = () => {
                 v-model="sightingReport.longitude"
                 type="number"
                 step="0.0001"
-                class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+                class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
                 placeholder="e.g., 102.4500"
               />
             </div>
@@ -1589,7 +1734,7 @@ const submitSightingReport = () => {
               id="sightingDate"
               v-model="sightingReport.date"
               type="date"
-              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
             />
           </div>
 
@@ -1605,7 +1750,7 @@ const submitSightingReport = () => {
               id="notes"
               v-model="sightingReport.notes"
               rows="3"
-              class="w-full px-3 py-2 text-sage-900 border rounded-lg border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
+              class="w-full px-3 py-2 border rounded-lg text-sage-900 border-sage-300 dark:border-sage-700 dark:bg-sage-900/40 dark:text-white focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600"
               placeholder="Add any details about the plant or location..."
             ></textarea>
           </div>
