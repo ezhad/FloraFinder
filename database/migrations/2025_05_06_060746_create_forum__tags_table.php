@@ -19,8 +19,8 @@ return new class extends Migration
 
         Schema::create('thread_tag', function(Blueprint $table){
             $table->id();
-            $table->foreignIdFor(\App\Models\Forum_Thread::class)->constrained()->cascadeOnDelete();
-            $table->foreignIdFor(\App\Models\Forum_Tag::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(\App\Models\ForumThread::class)->constrained()->cascadeOnDelete();
+            $table->foreignIdFor(\App\Models\ForumTag::class)->constrained()->cascadeOnDelete();
         });
 
        
