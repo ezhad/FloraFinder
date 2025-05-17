@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Plant_Category extends Model
+class PlantCategory extends Model
 {
     /** @use HasFactory<\Database\Factories\PlantCategoryFactory> */
     use HasFactory;

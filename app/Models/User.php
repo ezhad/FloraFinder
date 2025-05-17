@@ -53,11 +53,11 @@ class User extends Authenticatable
     
     }
 
-    public function forum_posts()
+    public function forumPosts()
     {
         return $this->hasMany(Forum_Post::class, 'forum_post_id');
     }
-    public function forum_threads()
+    public function forumThreads()
     {
         return $this->hasMany(Forum_Thread::class, 'forum_thread_id');
     }

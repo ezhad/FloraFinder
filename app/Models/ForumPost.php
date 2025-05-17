@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Forum_Post extends Model
+class ForumPost extends Model
 {
     /** @use HasFactory<\Database\Factories\ForumPostFactory> */
     use HasFactory;
@@ -18,8 +18,8 @@ class Forum_Post extends Model
     {
         return $this->belongsTo(User::class, 'user_id');
     }
-    public function forum_thread()
+    public function forumThread()
     {
-        return $this->belongsTo(Forum_Thread::class, 'forum_thread_id');
+        return $this->belongsTo(ForumThread::class, 'forum_thread_id');
     }
 }

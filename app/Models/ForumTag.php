@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class Forum_Tag extends Model
+class ForumTag extends Model
 {
     /** @use HasFactory<\Database\Factories\ForumTagFactory> */
     use HasFactory;
@@ -14,8 +14,8 @@ class Forum_Tag extends Model
         'name',
     ];
 
-    public function forum_threads()
+    public function forumThreads()
     {
-        return $this->belongsToMany(Forum_Thread::class, 'forum_thread_id');
+        return $this->belongsToMany(ForumThread::class, 'forum_thread_id');
     }
 }
