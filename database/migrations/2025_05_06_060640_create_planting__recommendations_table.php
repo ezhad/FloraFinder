@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('planting__recommendations', function (Blueprint $table) {
+        Schema::create('planting_recommendations', function (Blueprint $table) {
             $table->id();
             $table->string('soil_type', 100);
             $table->string('water_per_week', 100);
@@ -28,6 +28,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('planting__recommendations');
+        Schema::dropIfExists('planting_recommendations');
     }
 };

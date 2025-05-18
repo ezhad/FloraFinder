@@ -11,7 +11,7 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conservation__statuses', function (Blueprint $table) {
+        Schema::create('conservation_statuses', function (Blueprint $table) {
             $table->id();
             $table->string('status_name', 100)->unique();
             $table->text('description');
@@ -24,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conservation__statuses');
+        Schema::dropIfExists('conservation_statuses');
     }
 };
