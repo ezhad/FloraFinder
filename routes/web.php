@@ -89,10 +89,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         [PlantIdentifierController::class, 'identify']
     )->name('plant-identifier.identify');
 
-    Route::post(
-        '/plant-identifier/identify-plant',
-        [PlantIdentifierController::class, 'identifyPlant']
-    )->name('plant-identifier.identify-plant');
 });
 
 
